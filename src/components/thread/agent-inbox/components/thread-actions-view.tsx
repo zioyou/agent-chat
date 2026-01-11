@@ -40,7 +40,7 @@ function ButtonGroup({
         size="sm"
         onClick={handleShowState}
       >
-        State
+        상태
       </Button>
       <Button
         variant="outline"
@@ -51,7 +51,7 @@ function ButtonGroup({
         size="sm"
         onClick={handleShowDescription}
       >
-        Description
+        설명
       </Button>
     </div>
   );
@@ -199,6 +199,37 @@ export function ThreadActionsView({
     }
   }, [actionRequests, hasMultipleActions, stream]);
 
+  const handleRejectAll = useCallback(() => {
+    try {
+      const allDecisions: Decision[] = actionRequests.map(() => ({
+        type: "reject",
+        message: "사용자가 전체 수락을 거부했습니다.",
+      }));
+
+      stream.submit(
+        {},
+        {
+          command: {
+            resume: { decisions: allDecisions },
+          },
+        },
+      );
+
+      toast("Success", {
+        description: "All actions rejected successfully.",
+        duration: 5000,
+      });
+    } catch (error) {
+      console.error("Error rejecting all actions", error);
+      toast.error("Error", {
+        description: "Failed to reject all actions.",
+        richColors: true,
+        closeButton: true,
+        duration: 5000,
+      });
+    }
+  }, [actionRequests, stream]);
+
   const handleSubmitAll = useCallback(() => {
     if (!hasMultipleActions) return;
 
@@ -320,16 +351,7 @@ export function ThreadActionsView({
           {threadId && <ThreadIdCopyable threadId={threadId} />}
         </div>
         <div className="flex flex-row items-center justify-start gap-2">
-          {apiUrl && (
-            <Button
-              size="sm"
-              variant="outline"
-              className="flex items-center gap-1 bg-white"
-              onClick={handleOpenInStudio}
-            >
-              Studio
-            </Button>
-          )}
+
           <ButtonGroup
             handleShowState={() => handleShowSidePanel(true, false)}
             handleShowDescription={() => handleShowSidePanel(false, true)}
@@ -339,26 +361,28 @@ export function ThreadActionsView({
         </div>
       </div>
 
-      <div className="flex w-full flex-row flex-wrap items-center justify-start gap-2">
-        <Button
-          variant="outline"
-          className="border-gray-500 bg-white font-normal text-gray-800"
-          onClick={handleResolve}
-          disabled={actionsDisabled}
-        >
-          Mark as Resolved
-        </Button>
-        {hasMultipleActions && allAllowApprove && (
+      {hasMultipleActions && (
+        <div className="flex w-full flex-row flex-wrap items-center justify-start gap-2">
           <Button
             variant="outline"
             className="border-gray-500 bg-white font-normal text-gray-800"
-            onClick={handleApproveAll}
+            onClick={handleRejectAll}
             disabled={actionsDisabled}
           >
-            Approve All
+            전체 거부
           </Button>
-        )}
-      </div>
+          {allAllowApprove && (
+            <Button
+              variant="outline"
+              className="border-gray-500 bg-white font-normal text-gray-800"
+              onClick={handleApproveAll}
+              disabled={actionsDisabled}
+            >
+              전체 승인
+            </Button>
+          )}
+        </div>
+      )}
 
       {hasMultipleActions && (
         <div className="flex w-full items-center gap-2">
@@ -376,7 +400,7 @@ export function ThreadActionsView({
                   status === "reject" && "border-red-500 bg-red-200",
                   status === "edit" && "border-amber-500 bg-amber-200",
                   index === currentIndex &&
-                    "outline-primary outline-2 outline-offset-2",
+                  "outline-primary outline-2 outline-offset-2",
                 )}
               >
                 <span className="sr-only">Action {index + 1}</span>
@@ -412,7 +436,7 @@ export function ThreadActionsView({
               disabled={currentIndex === 0}
               onClick={() => setCurrentIndex((prev) => Math.max(0, prev - 1))}
             >
-              Previous
+              이전
             </Button>
             <Button
               variant="outline"
@@ -424,7 +448,7 @@ export function ThreadActionsView({
                 )
               }
             >
-              Next
+              다음
             </Button>
           </div>
           <Button
@@ -434,7 +458,7 @@ export function ThreadActionsView({
           >
             {submittingAll
               ? "Submitting..."
-              : `Submit all ${actionRequests.length} decisions`}
+              : `총 ${actionRequests.length}개 결정 제출`}
           </Button>
         </div>
       )}

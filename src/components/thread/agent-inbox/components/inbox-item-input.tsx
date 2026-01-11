@@ -93,7 +93,7 @@ function ApproveOnly({
         onClick={handleSubmit}
         className="w-full"
       >
-        Approve
+        승인
       </Button>
     </div>
   );
@@ -146,11 +146,11 @@ function EditActionCard({
     return null;
   }
 
-  const header = editResponse.acceptAllowed ? "Edit/Approve" : "Edit";
+  const header = editResponse.acceptAllowed ? "승인 (내용수정 가능)" : "수정";
   const buttonText =
     editResponse.acceptAllowed && !editResponse.editsMade
-      ? "Approve"
-      : "Submit";
+      ? "승인"
+      : "제출";
 
   const handleReset = () => {
     if (!editResponse.edited_action?.args) {
@@ -248,6 +248,7 @@ function RejectActionCard({
   handleSubmit,
   showArgs,
   actionArgs,
+  setSelectedSubmitType,
 }: {
   humanResponse: DecisionWithEdits[];
   isLoading: boolean;
@@ -257,6 +258,7 @@ function RejectActionCard({
   ) => Promise<void> | void;
   showArgs: boolean;
   actionArgs: Record<string, unknown>;
+  setSelectedSubmitType: React.Dispatch<React.SetStateAction<SubmitType | undefined>>;
 }) {
   const rejectResponse = humanResponse.find(
     (response) => response.type === "reject",
@@ -269,6 +271,7 @@ function RejectActionCard({
   const handleKeyDown = (event: React.KeyboardEvent) => {
     if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
       event.preventDefault();
+      setSelectedSubmitType("reject");
       handleSubmit(event);
     }
   };
@@ -276,14 +279,13 @@ function RejectActionCard({
   return (
     <div className="flex w-full max-w-full flex-col items-start gap-4 rounded-xl border border-gray-300 p-6">
       <div className="flex w-full items-center justify-between">
-        <p className="text-base font-semibold text-black">Reject</p>
+        <p className="text-base font-semibold text-black">거부 (사유 입력)</p>
         <ResetButton handleReset={() => onChange("", rejectResponse)} />
       </div>
 
       {showArgs && <ArgsRenderer args={actionArgs} />}
 
       <div className="flex w-full flex-col items-start gap-[6px]">
-        <p className="min-w-fit text-sm font-medium">Reason</p>
         <Textarea
           disabled={isLoading}
           className="w-full max-w-full"
@@ -291,7 +293,7 @@ function RejectActionCard({
           onChange={(event) => onChange(event.target.value, rejectResponse)}
           onKeyDown={handleKeyDown}
           rows={4}
-          placeholder="Share feedback with the agent..."
+          placeholder="사유를 입력하시기 바랍니다."
         />
       </div>
 
@@ -301,7 +303,7 @@ function RejectActionCard({
           disabled={isLoading}
           onClick={handleSubmit}
         >
-          Submit rejection
+          거부
         </Button>
       </div>
     </div>
@@ -392,13 +394,13 @@ export function InboxItemInput({
       const newArgs =
         Array.isArray(change) && Array.isArray(key)
           ? {
-              ...response.edited_action.args,
-              ...Object.fromEntries(key.map((k, index) => [k, change[index]])),
-            }
+            ...response.edited_action.args,
+            ...Object.fromEntries(key.map((k, index) => [k, change[index]])),
+          }
           : {
-              ...response.edited_action.args,
-              [key as string]: change as string,
-            };
+            ...response.edited_action.args,
+            [key as string]: change as string,
+          };
 
       const newEdit: DecisionWithEdits = {
         type: "edit",
@@ -435,15 +437,8 @@ export function InboxItemInput({
     const trimmed = change.trim();
     setHasAddedResponse(!!trimmed);
 
-    if (!trimmed) {
-      if (hasEdited) {
-        setSelectedSubmitType("edit");
-      } else if (approveAllowed) {
-        setSelectedSubmitType("approve");
-      }
-    } else {
-      setSelectedSubmitType("reject");
-    }
+    // 거부 사유 입력 여부와 관계없이 항상 reject 타입으로 설정
+    setSelectedSubmitType("reject");
 
     setHumanResponse((prev) =>
       prev.map((existing) =>
@@ -483,6 +478,7 @@ export function InboxItemInput({
           actionArgs={actionArgs}
           onChange={onRejectChange}
           handleSubmit={handleSubmit}
+          setSelectedSubmitType={setSelectedSubmitType}
         />
 
         {isLoading && (

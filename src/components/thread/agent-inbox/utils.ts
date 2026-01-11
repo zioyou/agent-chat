@@ -179,10 +179,7 @@ export function buildDecisionFromState(
   }
 
   if (selectedDecision.type === "reject") {
-    const message = selectedDecision.message?.trim();
-    if (!message) {
-      return { error: "Please provide a rejection reason." };
-    }
+    const message = selectedDecision.message?.trim() || "";
     return { decision: { type: "reject", message } };
   }
 

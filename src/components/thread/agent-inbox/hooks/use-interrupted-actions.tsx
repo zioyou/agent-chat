@@ -201,6 +201,7 @@ export default function useInterruptedActions({
         description: "Marked thread as resolved.",
         duration: 3000,
       });
+      setStreamFinished(true);
     } catch (error) {
       console.error("Error marking thread as resolved", error);
       toast.error("Error", {
