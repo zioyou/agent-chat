@@ -68,6 +68,7 @@ interface InboxItemInputProps {
 
   handleSubmit: (
     e: React.MouseEvent<HTMLButtonElement, MouseEvent> | React.KeyboardEvent,
+    submitTypeOverride?: SubmitType,
   ) => Promise<void> | void;
 }
 
@@ -80,6 +81,7 @@ function ApproveOnly({
   actionRequestArgs: Record<string, unknown>;
   handleSubmit: (
     e: React.MouseEvent<HTMLButtonElement, MouseEvent> | React.KeyboardEvent,
+    submitTypeOverride?: SubmitType,
   ) => Promise<void> | void;
 }) {
   return (
@@ -118,6 +120,7 @@ function EditActionCard({
   ) => void;
   handleSubmit: (
     e: React.MouseEvent<HTMLButtonElement, MouseEvent> | React.KeyboardEvent,
+    submitTypeOverride?: SubmitType,
   ) => Promise<void> | void;
 }) {
   const defaultRows = React.useRef<Record<string, number>>({});
@@ -255,6 +258,7 @@ function RejectActionCard({
   onChange: (value: string, response: DecisionWithEdits) => void;
   handleSubmit: (
     e: React.MouseEvent<HTMLButtonElement, MouseEvent> | React.KeyboardEvent,
+    submitTypeOverride?: SubmitType,
   ) => Promise<void> | void;
   showArgs: boolean;
   actionArgs: Record<string, unknown>;
@@ -301,7 +305,7 @@ function RejectActionCard({
         <Button
           variant="brand"
           disabled={isLoading}
-          onClick={handleSubmit}
+          onClick={(e) => handleSubmit(e, "reject")}
         >
           거부
         </Button>

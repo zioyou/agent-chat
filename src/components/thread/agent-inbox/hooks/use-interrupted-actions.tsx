@@ -21,6 +21,7 @@ interface UseInterruptedActionsInput {
 interface UseInterruptedActionsValue {
   handleSubmit: (
     e: React.MouseEvent<HTMLButtonElement, MouseEvent> | KeyboardEvent,
+    submitTypeOverride?: SubmitType,
   ) => Promise<void>;
   handleResolve: (
     e: React.MouseEvent<HTMLButtonElement, MouseEvent>,
@@ -44,6 +45,7 @@ interface UseInterruptedActionsValue {
 export default function useInterruptedActions({
   interrupt,
 }: UseInterruptedActionsInput): UseInterruptedActionsValue {
+  // ... (previous state declarations unchanged)
   const thread = useStreamContext();
   const [humanResponse, setHumanResponse] = useState<DecisionWithEdits[]>([]);
   const [loading, setLoading] = useState(false);
@@ -56,6 +58,7 @@ export default function useInterruptedActions({
   const initialHumanInterruptEditValue = useRef<Record<string, string>>({});
 
   useEffect(() => {
+    // ... (effect logic unchanged)
     const hitlValue = interrupt.value as HITLRequest | undefined;
     initialHumanInterruptEditValue.current = {};
 
@@ -105,12 +108,14 @@ export default function useInterruptedActions({
 
   const handleSubmit = async (
     e: React.MouseEvent<HTMLButtonElement, MouseEvent> | KeyboardEvent,
+    submitTypeOverride?: SubmitType,
   ) => {
     e.preventDefault();
     const { decision, error } = buildDecisionFromState(
       humanResponse,
-      selectedSubmitType,
+      submitTypeOverride ?? selectedSubmitType,
     );
+    // ... (rest of implementation)
 
     if (!decision) {
       toast.error("Error", {

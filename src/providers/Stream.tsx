@@ -163,8 +163,53 @@ export const StreamProvider: React.FC<{ children: ReactNode }> = ({
   const [availableAssistants, setAvailableAssistants] = useState<any[]>([]);
   const [isFetching, setIsFetching] = useState(false);
 
+  // 모델 상태 체크
+  const [modelHealth, setModelHealth] = useState<{
+    status: 'loading' | 'ok' | 'error';
+    model?: string;
+    provider?: string;
+    message?: string;
+  }>({ status: 'loading' });
+
+  // 모델 상태 확인 함수
+  const checkModelHealth = async () => {
+    if (!finalApiUrl) return;
+    setModelHealth({ status: 'loading' });
+    try {
+      const res = await fetch(`${finalApiUrl}/model/health`, {
+        headers: apiKey ? { 'X-Api-Key': apiKey } : {},
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setModelHealth({
+          status: data.status,
+          model: data.model,
+          provider: data.provider,
+          message: data.message,
+        });
+      } else {
+        setModelHealth({
+          status: 'error',
+          message: 'Failed to check model health',
+        });
+      }
+    } catch (e) {
+      setModelHealth({
+        status: 'error',
+        message: 'Cannot connect to server',
+      });
+    }
+  };
+
+  // 모델 상태 체크 (API URL이 설정되고 assistantId가 없을 때)
   useEffect(() => {
     if (finalApiUrl && !finalAssistantId) {
+      checkModelHealth();
+    }
+  }, [finalApiUrl, finalAssistantId, apiKey]);
+
+  useEffect(() => {
+    if (finalApiUrl && !finalAssistantId && modelHealth.status === 'ok') {
       const fetchAssistants = async () => {
         setIsFetching(true);
         try {
@@ -186,10 +231,79 @@ export const StreamProvider: React.FC<{ children: ReactNode }> = ({
       };
       fetchAssistants();
     }
-  }, [finalApiUrl, finalAssistantId, apiKey]);
+  }, [finalApiUrl, finalAssistantId, apiKey, modelHealth.status]);
 
-  // Case 2: API URL is set but Assistant ID is not -> Show selection list
+  // Case 2: API URL is set but Assistant ID is not -> Show selection list or model error
   if (finalApiUrl && !finalAssistantId) {
+    // 모델 상태 로딩 중
+    if (modelHealth.status === 'loading') {
+      return (
+        <div className="bg-background flex min-h-screen w-full flex-col items-center justify-center p-4">
+          <div className="flex flex-col items-center gap-4">
+            <div className="border-primary h-10 w-10 animate-spin rounded-full border-4 border-t-transparent" />
+            <p className="text-muted-foreground animate-pulse">모델 서버 연결 확인 중...</p>
+          </div>
+        </div>
+      );
+    }
+
+    // 모델 상태 오류
+    if (modelHealth.status === 'error') {
+      return (
+        <div className="bg-background flex min-h-screen w-full flex-col items-center justify-center p-4">
+          <div className="bg-card w-full max-w-md rounded-3xl border p-8 shadow-2xl">
+            <div className="flex flex-col items-center gap-6 text-center">
+              <div className="rounded-2xl bg-red-100 p-4">
+                <span className="text-5xl">🔴</span>
+              </div>
+              <div className="space-y-2">
+                <h1 className="text-2xl font-bold tracking-tight">모델 연결 확인 필요</h1>
+                <p className="text-muted-foreground">
+                  LLM 모델 서버에 연결할 수 없습니다.
+                </p>
+              </div>
+
+              <div className="bg-muted w-full rounded-xl p-4 text-left">
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">MODEL:</span>
+                    <code className="font-mono text-xs">{modelHealth.model || 'N/A'}</code>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Provider:</span>
+                    <span>{modelHealth.provider || 'N/A'}</span>
+                  </div>
+                  <div className="border-t pt-2">
+                    <span className="text-muted-foreground">오류:</span>
+                    <p className="text-red-600 mt-1 text-xs">{modelHealth.message}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <Button
+                  variant="outline"
+                  onClick={checkModelHealth}
+                >
+                  🔄 다시 확인
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setApiUrl(null);
+                    setAssistantId(null);
+                  }}
+                >
+                  ⚙️ 서버 주소 변경
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // 모델 상태 정상 -> 에이전트 선택 화면
     return (
       <div className="bg-background flex min-h-screen w-full flex-col items-center p-4 pt-20">
         <div className="w-full max-w-4xl space-y-8">
@@ -200,7 +314,7 @@ export const StreamProvider: React.FC<{ children: ReactNode }> = ({
             <div className="space-y-2">
               <h1 className="text-3xl font-bold tracking-tight">에이전트 선택</h1>
               <p className="text-muted-foreground text-lg">
-                사용하실 대화 상대를 선택해주세요. 각 에이전트는 서로 다른 전문 분야를 가지고 있습니다.
+                사용하실 에이전트를 선택해주세요. 각 에이전트는 서로 다른 전문 분야를 가지고 있습니다.
               </p>
             </div>
           </div>
@@ -212,46 +326,81 @@ export const StreamProvider: React.FC<{ children: ReactNode }> = ({
             </div>
           ) : (
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {availableAssistants.map((assistant) => (
-                <button
-                  key={assistant.assistant_id}
-                  onClick={() => setAssistantId(assistant.assistant_id)}
-                  className="group hover:border-primary border-muted bg-card relative flex flex-col items-start gap-4 rounded-2xl border p-6 text-left transition-all hover:shadow-xl active:scale-95"
-                >
-                  <div className="from-muted to-background flex size-12 items-center justify-center rounded-xl bg-gradient-to-br transition-colors group-hover:from-indigo-50 group-hover:to-white">
-                    <ArrowRight className="text-muted-foreground group-hover:text-primary size-6 transition-transform group-hover:translate-x-1" />
-                  </div>
-                  <div className="space-y-2">
-                    <h3 className="text-lg font-bold leading-none tracking-tight">
-                      {assistant.name || assistant.assistant_id}
-                    </h3>
+              {availableAssistants.map((assistant) => {
+                // 외부 에이전트 판별: graph_id가 'external:'로 시작하거나 source_type이 'external'인 경우
+                const isExternal = assistant.graph_id?.startsWith('external:') ||
+                  assistant.source_type === 'external';
+
+                return (
+                  <button
+                    key={assistant.assistant_id}
+                    onClick={() => setAssistantId(assistant.assistant_id)}
+                    className="group hover:border-primary border-muted bg-card relative flex flex-col items-start gap-4 rounded-2xl border p-6 text-left transition-all hover:shadow-xl active:scale-95"
+                  >
+                    {/* 상단 라인: 소스 타입 배지 + 화살표 아이콘 */}
+                    <div className="flex w-full items-center justify-between">
+                      {/* 소스 타입 배지 */}
+                      <div className={`flex items-center gap-1 rounded-full px-2 py-1 text-xs font-medium ${isExternal
+                        ? 'bg-emerald-100 text-emerald-700'
+                        : 'bg-blue-100 text-blue-700'
+                        }`}>
+                        <span>{isExternal ? '🌐' : '🏠'}</span>
+                        <span>{isExternal ? 'External' : 'Internal'}</span>
+                      </div>
+                      <div className="from-muted to-background flex size-12 items-center justify-center rounded-xl bg-gradient-to-br transition-colors group-hover:from-indigo-50 group-hover:to-white">
+                        <ArrowRight className="text-muted-foreground group-hover:text-primary size-6 transition-transform group-hover:translate-x-1" />
+                      </div>
+                    </div>
+
+
+                    <div className="space-y-1">
+                      <h3 className="text-lg font-bold leading-none tracking-tight">
+                        {assistant.name || assistant.assistant_id}
+                      </h3>
+                      <code className="bg-muted text-muted-foreground inline-block rounded text-[10px] font-mono">
+                        {assistant.graph_id?.replace(/^external:/, '') || assistant.assistant_id}
+                      </code>
+                    </div>
                     <p className="text-muted-foreground line-clamp-3 text-sm leading-relaxed">
                       {assistant.description || "이 에이전트에 대한 설명이 없습니다."}
                     </p>
-                  </div>
-                  <div className="mt-auto flex w-full items-center justify-between pt-4">
-                    <span className="text-primary/70 group-hover:text-primary text-xs font-semibold tracking-wider uppercase">
-                      선택하기
-                    </span>
-                    <code className="bg-muted text-muted-foreground rounded px-1.5 py-0.5 text-[10px] font-mono">
-                      {assistant.graph_id}
-                    </code>
-                  </div>
-                </button>
-              ))}
+                  </button>
+                );
+              })}
             </div>
           )}
 
-          <div className="mt-12 flex justify-center pt-8">
+          <div className="mt-12 flex justify-center gap-4 pt-8 pb-8">
             <Button
-              variant="ghost"
+              variant="outline"
               onClick={() => {
                 setApiUrl(null);
                 setAssistantId(null);
               }}
               className="text-muted-foreground hover:text-foreground"
             >
-              어시스턴트 서버 주소 변경하기
+              ⚙️ 서버 주소 변경
+            </Button>
+            <Button
+              variant="outline"
+              onClick={async () => {
+                try {
+                  const res = await fetch(`${finalApiUrl}/external-sources/reload`, {
+                    method: 'POST',
+                    headers: apiKey ? { 'X-Api-Key': apiKey } : {},
+                  });
+                  if (res.ok) {
+                    window.location.reload();
+                  } else {
+                    console.error('Failed to reload external sources');
+                  }
+                } catch (e) {
+                  console.error('Failed to reload external sources:', e);
+                }
+              }}
+              className="text-muted-foreground hover:text-foreground"
+            >
+              🔄 외부 에이전트 새로고침
             </Button>
           </div>
         </div>

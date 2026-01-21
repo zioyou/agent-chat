@@ -687,7 +687,7 @@ export function Thread() {
                       </span>
                       {assistantInfo?.graph_id && (
                         <code className="bg-muted text-muted-foreground rounded-full border border-gray-200 px-2 py-0.5 text-[10px] font-mono leading-none">
-                          {assistantInfo.graph_id}
+                          {assistantInfo.graph_id.replace(/^external:/, '')}
                         </code>
                       )}
                     </div>
@@ -807,7 +807,7 @@ export function Thread() {
                         </h1>
                         {assistantInfo?.graph_id && (
                           <code className="bg-muted text-muted-foreground rounded-full border border-gray-200 px-3 py-1 text-xs font-mono">
-                            {assistantInfo.graph_id}
+                            {assistantInfo.graph_id.replace(/^external:/, '')}
                           </code>
                         )}
                       </div>

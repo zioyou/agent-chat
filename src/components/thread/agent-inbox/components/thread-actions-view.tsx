@@ -290,10 +290,13 @@ export function ThreadActionsView({
     });
   }, [actionRequests, reviewConfigs, hasMultipleActions]);
 
-  const handleSaveDecision = () => {
+  const handleSaveDecision = (
+    e: React.MouseEvent<HTMLButtonElement, MouseEvent> | React.KeyboardEvent,
+    submitTypeOverride?: SubmitType,
+  ) => {
     const { decision, error } = buildDecisionFromState(
       humanResponse,
-      selectedSubmitType,
+      submitTypeOverride ?? selectedSubmitType,
     );
 
     if (!decision || error) {

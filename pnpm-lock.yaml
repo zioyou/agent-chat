@@ -57,7 +57,7 @@ importers:
         specifier: ^12.4.9
         version: 12.12.1(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
       katex:
-        specifier: ^0.16.21
+        specifier: ^0.16.22
         version: 0.16.22
       langgraph-nextjs-api-passthrough:
         specifier: ^0.0.4
