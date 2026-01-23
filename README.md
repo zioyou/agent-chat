@@ -7,21 +7,8 @@ Agent Chat UI is a Next.js application which enables chatting with any LangGraph
 
 ## Setup
 
-> [!TIP]
-> Don't want to run the app locally? Use the deployed site here: [agentchat.vercel.app](https://agentchat.vercel.app)!
-
-First, clone the repository, or run the [`npx` command](https://www.npmjs.com/package/create-agent-chat-app):
-
 ```bash
-npx create-agent-chat-app
-```
-
-or
-
-```bash
-git clone https://github.com/langchain-ai/agent-chat-ui.git
-
-cd agent-chat-ui
+cd agent-chat
 ```
 
 Install dependencies:
@@ -36,7 +23,7 @@ Run the app:
 pnpm dev
 ```
 
-The app will be available at `http://localhost:3000`.
+The app will be available at `http://localhost:3001`.
 
 ## Usage
 
@@ -177,7 +164,7 @@ export function Writer(props: {
       </div>
 
       <Artifact title={props.title}>
-        <p className="p-4 whitespace-pre-wrap">{props.content}</p>
+        <p className="whitespace-pre-wrap p-4">{props.content}</p>
       </Artifact>
     </>
   );
