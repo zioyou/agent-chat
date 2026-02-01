@@ -1,11 +1,12 @@
 import { v4 as uuidv4 } from "uuid";
-import { ReactNode, useEffect, useRef } from "react";
+import { ReactNode, useEffect, useRef, useState, FormEvent, Fragment } from "react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { useStreamContext } from "@/providers/Stream";
-import { useState, FormEvent } from "react";
-import { Button } from "../ui/button";
-import { Checkpoint, Message } from "@langchain/langgraph-sdk";
+import { TasksFilesSidebar } from "./TasksFilesSidebar";
+import { ToolResult } from "./messages/tool-calls";
+import { Message, Checkpoint } from "@langchain/langgraph-sdk";
+
 import { AssistantMessage, AssistantMessageLoading } from "./messages/ai";
 import { HumanMessage } from "./messages/human";
 import {
@@ -29,13 +30,22 @@ import {
   Bot,
   CodeXml,
   Terminal,
+  CheckCircle,
+  Clock,
+  Circle,
+  FileIcon,
+  ChevronDown,
+  Square,
+  ArrowUp,
 } from "lucide-react";
+import { FilesPopover } from "./TasksFilesSidebar";
 import {
   Sheet,
   SheetContent,
   SheetHeader,
   SheetTitle,
 } from "../ui/sheet";
+import { Button } from "../ui/button";
 import { getApiKey } from "@/lib/api-key";
 import { useQueryState, parseAsBoolean } from "nuqs";
 import { StickToBottom, useStickToBottomContext } from "use-stick-to-bottom";
@@ -59,6 +69,7 @@ import {
   ArtifactTitle,
   useArtifactContext,
 } from "./artifact";
+import { TodoItem } from "@/components/thread/types";
 
 function StickyToBottomContent(props: {
   content: ReactNode;
@@ -147,7 +158,7 @@ function WorkflowGraph({
         const graphRes = await fetch(
           `${apiUrl}/assistants/${assistantId}/graph`,
           {
-            headers,
+            headers: headers as any,
           },
         );
         if (graphRes.ok) {
@@ -161,7 +172,7 @@ function WorkflowGraph({
         const imgRes = await fetch(
           `${apiUrl}/assistants/${assistantId}/graph/image`,
           {
-            headers,
+            headers: headers as any,
           },
         );
         if (!imgRes.ok) throw new Error("Failed to fetch graph image");
@@ -269,7 +280,7 @@ function WorkflowGraph({
                   </div>
                   <div>
                     <h4 className="text-sm font-bold text-gray-900">{tool.name}</h4>
-                    <p className="mt-0.5 text-xs leading-relaxed text-gray-500">
+                    <p className="mt-0.5 text-xs leading-relaxed text-gray-500 line-clamp-2">
                       {tool.description}
                     </p>
                   </div>
@@ -356,9 +367,6 @@ function WorkflowGraph({
 }
 
 export function Thread() {
-  const [artifactContext, setArtifactContext] = useArtifactContext();
-  const [artifactOpen, closeArtifact] = useArtifactOpen();
-
   const [threadId, _setThreadId] = useQueryState("threadId");
   const [chatHistoryOpen, setChatHistoryOpen] = useQueryState(
     "chatHistoryOpen",
@@ -410,6 +418,26 @@ export function Thread() {
       fetchInfo();
     }
   }, [apiUrl, assistantId]);
+
+  const stream = useStreamContext();
+  
+  // Create setFiles handler (local only for now)
+  const setFiles = async (newFiles: Record<string, string>) => {
+      console.log("Files updated via UI (local only):", newFiles);
+      toast.info("File saving is not fully wired up to the agent backend yet.");
+  };
+
+  // Extract todos and files from stream values
+  const todos = (stream as any).todos ?? (stream as any).values?.todos ?? [];
+  const files = (stream as any).files ?? (stream as any).values?.files ?? {};
+
+  const [artifactOpen, closeArtifact] = useArtifactOpen();
+  const [artifactContext, setArtifactContext] = useArtifactContext();
+  
+  const showTasks = (todos.length > 0 || Object.keys(files).length > 0) && !artifactOpen;
+
+  const messages = stream.messages;
+  const isLoading = stream.isLoading;
   const {
     contentBlocks,
     setContentBlocks,
@@ -422,10 +450,6 @@ export function Thread() {
   } = useFileUpload();
   const [firstTokenReceived, setFirstTokenReceived] = useState(false);
   const isLargeScreen = useMediaQuery("(min-width: 1024px)");
-
-  const stream = useStreamContext();
-  const messages = stream.messages;
-  const isLoading = stream.isLoading;
 
   const lastError = useRef<string | undefined>(undefined);
 
@@ -505,7 +529,7 @@ export function Thread() {
         streamMode: ["values"],
         streamSubgraphs: true,
         streamResumable: true,
-        optimisticValues: (prev) => ({
+        optimisticValues: (prev: any) => ({
           ...prev,
           context,
           messages: [
@@ -537,8 +561,47 @@ export function Thread() {
 
   const chatStarted = !!threadId || !!messages.length;
   const hasNoAIOrToolMessages = !messages.find(
-    (m) => m.type === "ai" || m.type === "tool",
+    (m: any) => m.type === "ai" || m.type === "tool",
   );
+
+  // Ported from deep-agents-ui ChatInterface.tsx
+  const [metaOpen, setMetaOpen] = useState<"tasks" | "files" | null>(null);
+  const tasksContainerRef = useRef<HTMLDivElement | null>(null);
+
+  const groupedTodos = {
+    in_progress: todos.filter((t) => t.status === "in_progress"),
+    pending: todos.filter((t) => t.status === "pending"),
+    completed: todos.filter((t) => t.status === "completed"),
+  };
+
+  const hasTasks = todos.length > 0;
+  const hasFiles = Object.keys(files).length > 0;
+
+  const getStatusIcon = (status: TodoItem["status"], className?: string) => {
+    switch (status) {
+      case "completed":
+        return (
+          <CheckCircle
+            size={16}
+            className={cn("text-green-600/80", className)}
+          />
+        );
+      case "in_progress":
+        return (
+          <Clock
+            size={16}
+            className={cn("text-amber-500/80", className)}
+          />
+        );
+      default:
+        return (
+          <Circle
+            size={16}
+            className={cn("text-gray-400/70", className)}
+          />
+        );
+    }
+  };
 
   return (
     <div className="flex h-screen w-full overflow-hidden">
@@ -566,11 +629,13 @@ export function Thread() {
           </div>
         </motion.div>
       </div>
-
+      
       <div
         className={cn(
-          "grid w-full grid-cols-[1fr_0fr] transition-all duration-500",
-          artifactOpen && "grid-cols-[3fr_2fr]",
+          "grid h-full w-full transition-all duration-500",
+          artifactOpen 
+            ? "grid-cols-[3fr_2fr]" 
+            : "grid-cols-[1fr]",
         )}
       >
         <motion.div
@@ -593,7 +658,6 @@ export function Thread() {
               : { duration: 0 }
           }
         >
-          {!chatStarted && (
             <div className="absolute top-0 left-0 z-10 flex w-full items-center justify-between gap-3 p-2 pl-4">
               <div>
                 {(!chatHistoryOpen || !isLargeScreen) && (
@@ -614,96 +678,13 @@ export function Thread() {
                 <TooltipIconButton
                   size="lg"
                   className="p-4"
-                  tooltip="Workflow graph"
-                  variant="ghost"
-                  onClick={() => setIsGraphOpen(true)}
-                >
-                  <Network className="size-5" />
-                </TooltipIconButton>
-
-                <TooltipIconButton
-                  size="lg"
-                  className="p-4"
-                  tooltip="에이전트 변경"
+                  tooltip="New Thread"
                   variant="ghost"
                   onClick={() => {
-                    setAssistantId(null);
                     setThreadId(null);
                   }}
                 >
-                  <LayoutGrid className="size-5" />
-                </TooltipIconButton>
-
-                <TooltipIconButton
-                  size="lg"
-                  className="p-4 text-rose-500 hover:bg-rose-50 hover:text-rose-600"
-                  tooltip="Exit and Reset"
-                  variant="ghost"
-                  onClick={() => {
-                    setApiUrl(null);
-                    setAssistantId(null);
-                    setThreadId(null);
-                  }}
-                >
-                  <LogOut className="size-5" />
-                </TooltipIconButton>
-              </div>
-            </div>
-          )}
-          {chatStarted && (
-            <div className="relative z-10 flex items-center justify-between gap-3 p-2">
-              <div className="relative flex items-center justify-start gap-2">
-                <div className="absolute left-0 z-10">
-                  {(!chatHistoryOpen || !isLargeScreen) && (
-                    <Button
-                      className="hover:bg-gray-100"
-                      variant="ghost"
-                      onClick={() => setChatHistoryOpen((p) => !p)}
-                    >
-                      {chatHistoryOpen ? (
-                        <PanelRightOpen className="size-5" />
-                      ) : (
-                        <PanelRightClose className="size-5" />
-                      )}
-                    </Button>
-                  )}
-                </div>
-                <motion.button
-                  className="flex cursor-pointer items-center gap-2"
-                  onClick={() => setThreadId(null)}
-                  animate={{
-                    marginLeft: !chatHistoryOpen ? 48 : 0,
-                  }}
-                  transition={{
-                    type: "spring",
-                    stiffness: 300,
-                    damping: 30,
-                  }}
-                >
-                  <div className="flex flex-col items-start gap-0.5">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xl font-bold tracking-tight text-gray-900 leading-none">
-                        {assistantInfo?.name || assistantId}
-                      </span>
-                      {assistantInfo?.graph_id && (
-                        <code className="bg-muted text-muted-foreground rounded-full border border-gray-200 px-2 py-0.5 text-[10px] font-mono leading-none">
-                          {assistantInfo.graph_id.replace(/^external:/, '')}
-                        </code>
-                      )}
-                    </div>
-                  </div>
-                </motion.button>
-              </div>
-
-              <div className="flex items-center gap-4 pr-2">
-                <TooltipIconButton
-                  size="lg"
-                  className="p-4"
-                  tooltip="New thread"
-                  variant="ghost"
-                  onClick={() => setThreadId(null)}
-                >
-                  <Plus className="size-5" />
+                  <SquarePen className="size-5" />
                 </TooltipIconButton>
 
                 <TooltipIconButton
@@ -744,29 +725,41 @@ export function Thread() {
                 </TooltipIconButton>
               </div>
 
-              <div className="from-background to-background/0 absolute inset-x-0 top-full h-5 bg-gradient-to-b" />
+
             </div>
-          )}
 
           <StickToBottom className="relative flex-1 overflow-hidden">
             <StickyToBottomContent
               className={cn(
                 "absolute inset-0 overflow-y-scroll px-4 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-gray-300 [&::-webkit-scrollbar-track]:bg-transparent",
-                !chatStarted && "mt-[25vh] flex flex-col items-stretch",
+                !chatStarted && "flex flex-col items-center justify-center",
                 chatStarted && "grid grid-rows-[1fr_auto]",
               )}
-              contentClassName="pt-8 pb-16 max-w-3xl mx-auto flex flex-col gap-4 w-full"
+              contentClassName={cn("pt-8 pb-16 max-w-3xl mx-auto flex flex-col gap-4 w-full", !chatStarted && "h-full justify-center")}
               content={
                 <>
-                  {messages
-                    .filter((m) => !m.id?.startsWith(DO_NOT_RENDER_ID_PREFIX))
+                  {!chatStarted && assistantInfo ? (
+                    <div className="flex flex-1 flex-col items-center justify-center gap-4 text-center mt-[15vh]">
+                      <div className="rounded-full bg-muted p-4">
+                        <Bot className="size-8 text-muted-foreground" />
+                      </div>
+                      <div className="space-y-1">
+                        <h2 className="text-lg font-semibold">{assistantInfo.name}</h2>
+                        <p className="text-sm text-muted-foreground max-w-md text-balance">
+                           {assistantInfo.description}
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    messages
+                    .filter((m: any) => !m.id?.startsWith(DO_NOT_RENDER_ID_PREFIX))
                     // Deduplicate messages by ID to prevent React key errors
-                    .filter((message, index, self) =>
+                    .filter((message: Message, index: number, self: Message[]) =>
                       message.id
-                        ? self.findIndex(m => m.id === message.id) === index
+                        ? self.findIndex((m: Message) => m.id === message.id) === index
                         : true // Keep messages without IDs
                     )
-                    .map((message, index) =>
+                    .map((message: Message, index: number) =>
                       message.type === "human" ? (
                         <HumanMessage
                           key={message.id || `${message.type}-${index}`}
@@ -781,7 +774,8 @@ export function Thread() {
                           handleRegenerate={handleRegenerate}
                         />
                       ),
-                    )}
+                    )
+                  )}
                   {/* Special rendering case where there are no AI/tool messages, but there is an interrupt.
                     We need to render it outside of the messages list, since there are no messages to render */}
                   {hasNoAIOrToolMessages && !!stream.interrupt && (
@@ -797,144 +791,331 @@ export function Thread() {
                   )}
                 </>
               }
-              footer={
-                <div className="sticky bottom-0 flex flex-col items-center gap-8 bg-white">
-                  {!chatStarted && (
-                    <div className="flex flex-col items-center gap-3">
-                      <div className="flex items-center gap-2">
-                        <h1 className="text-2xl font-bold tracking-tight">
-                          {assistantInfo?.name || assistantId}
-                        </h1>
-                        {assistantInfo?.graph_id && (
-                          <code className="bg-muted text-muted-foreground rounded-full border border-gray-200 px-3 py-1 text-xs font-mono">
-                            {assistantInfo.graph_id.replace(/^external:/, '')}
-                          </code>
-                        )}
-                      </div>
-                      {assistantInfo?.description && (
-                        <p className="text-muted-foreground max-w-lg text-center text-sm font-medium leading-relaxed">
-                          {assistantInfo.description}
-                        </p>
-                      )}
-                    </div>
-                  )}
-
-                  <ScrollToBottom className="animate-in fade-in-0 zoom-in-95 absolute bottom-full left-1/2 mb-4 -translate-x-1/2" />
-
-                  <div
-                    ref={dropRef}
-                    className={cn(
-                      "bg-muted relative z-10 mx-auto mb-8 w-full max-w-3xl rounded-2xl shadow-xs transition-all",
-                      dragOver
-                        ? "border-primary border-2 border-dotted"
-                        : "border border-solid",
-                    )}
-                  >
-                    <form
-                      onSubmit={handleSubmit}
-                      className="mx-auto grid max-w-3xl grid-rows-[1fr_auto] gap-2"
-                    >
-                      <ContentBlocksPreview
-                        blocks={contentBlocks}
-                        onRemove={removeBlock}
-                      />
-                      <textarea
-                        value={input}
-                        onChange={(e) => setInput(e.target.value)}
-                        onPaste={handlePaste}
-                        onKeyDown={(e) => {
-                          if (
-                            e.key === "Enter" &&
-                            !e.shiftKey &&
-                            !e.metaKey &&
-                            !e.nativeEvent.isComposing
-                          ) {
-                            e.preventDefault();
-                            const el = e.target as HTMLElement | undefined;
-                            const form = el?.closest("form");
-                            form?.requestSubmit();
-                          }
-                        }}
-                        placeholder="대화 내용을 입력하세요..."
-                        className="field-sizing-content resize-none border-none bg-transparent p-3.5 pb-0 shadow-none ring-0 outline-none focus:ring-0 focus:outline-none"
-                      />
-
-                      <div className="flex items-center gap-6 p-2 pt-4">
-                        <div>
-                          <div className="flex items-center space-x-2">
-                            <Switch
-                              id="render-tool-calls"
-                              checked={hideToolCalls ?? false}
-                              onCheckedChange={setHideToolCalls}
-                            />
-                            <Label
-                              htmlFor="render-tool-calls"
-                              className="text-sm text-gray-600"
-                            >
-                              도구 숨기기
-                            </Label>
-                          </div>
-                        </div>
-                        <Label
-                          htmlFor="file-input"
-                          className="flex cursor-pointer items-center gap-2"
-                        >
-                          <Plus className="size-5 text-gray-600" />
-                          <span className="text-sm text-gray-600">
-                            파일 업로드
-                          </span>
-                        </Label>
-                        <input
-                          id="file-input"
-                          type="file"
-                          onChange={handleFileUpload}
-                          multiple
-                          accept="image/jpeg,image/png,image/gif,image/webp,application/pdf"
-                          className="hidden"
-                        />
-                        {stream.isLoading ? (
-                          <Button
-                            key="stop"
-                            onClick={() => stream.stop()}
-                            className="ml-auto"
-                          >
-                            <LoaderCircle className="h-4 w-4 animate-spin" />
-                            Cancel
-                          </Button>
-                        ) : (
-                          <Button
-                            type="submit"
-                            className="ml-auto shadow-md transition-all"
-                            disabled={
-                              isLoading ||
-                              (!input.trim() && contentBlocks.length === 0)
-                            }
-                          >
-                            보내기
-                          </Button>
-                        )}
-                      </div>
-                    </form>
-                  </div>
-                </div>
-              }
             />
           </StickToBottom>
-        </motion.div>
-        <div className="relative flex flex-col border-l">
-          <div className="absolute inset-0 flex min-w-[30vw] flex-col">
-            <div className="grid grid-cols-[1fr_auto] border-b p-4">
-              <ArtifactTitle className="truncate overflow-hidden" />
-              <button
-                onClick={closeArtifact}
-                className="cursor-pointer"
+
+          {/* Footer Moved Outside StickToBottom to fix scroll bounce */}
+          <div className="flex-shrink-0 bg-background z-10">
+            <div
+              ref={dropRef}
+              className={cn(
+                "mx-4 mb-6 flex flex-shrink-0 flex-col overflow-hidden rounded-xl border border-border bg-background",
+                "mx-auto w-[calc(100%-32px)] max-w-[1024px] transition-colors duration-200 ease-in-out",
+                dragOver && "border-primary border-2 border-dotted"
+              )}
+            >
+              {(hasTasks || hasFiles) && (
+                <div className="flex max-h-72 flex-col overflow-y-auto border-b border-border bg-sidebar empty:hidden">
+                  {!metaOpen && (
+                    <>
+                      {(() => {
+                        const activeTask = todos.find(
+                          (t) => t.status === "in_progress"
+                        );
+
+                        const totalTasks = todos.length;
+                        const remainingTasks =
+                          totalTasks - groupedTodos.pending.length;
+                        const isCompleted = totalTasks === remainingTasks;
+
+                        const tasksTrigger = (() => {
+                          if (!hasTasks) return null;
+                          return (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setMetaOpen((prev) =>
+                                  prev === "tasks" ? null : "tasks"
+                                )
+                              }
+                              className="grid w-full cursor-pointer grid-cols-[auto_auto_1fr] items-center gap-3 px-[18px] py-3 text-left hover:bg-accent/50 transition-colors"
+                              aria-expanded={metaOpen === "tasks"}
+                            >
+                              {(() => {
+                                if (isCompleted) {
+                                  return [
+                                    <CheckCircle
+                                      key="icon"
+                                      size={16}
+                                      className="text-green-600/80"
+                                    />,
+                                    <span
+                                      key="label"
+                                      className="ml-[1px] min-w-0 truncate text-sm"
+                                    >
+                                      All tasks completed
+                                    </span>,
+                                  ];
+                                }
+
+                                if (activeTask != null) {
+                                  return [
+                                    <div key="icon">
+                                      {getStatusIcon(activeTask.status)}
+                                    </div>,
+                                    <span
+                                      key="label"
+                                      className="ml-[1px] min-w-0 truncate text-sm"
+                                    >
+                                      Task{" "}
+                                      {totalTasks - groupedTodos.pending.length} of{" "}
+                                      {totalTasks}
+                                    </span>,
+                                    <span
+                                      key="content"
+                                      className="min-w-0 gap-2 truncate text-sm text-muted-foreground"
+                                    >
+                                      {activeTask.content}
+                                    </span>,
+                                  ];
+                                }
+
+                                return [
+                                  <Circle
+                                    key="icon"
+                                    size={16}
+                                    className="text-gray-400/70"
+                                  />,
+                                  <span
+                                    key="label"
+                                    className="ml-[1px] min-w-0 truncate text-sm"
+                                  >
+                                    Task {totalTasks - groupedTodos.pending.length}{" "}
+                                    of {totalTasks}
+                                  </span>,
+                                ];
+                              })()}
+                            </button>
+                          );
+                        })();
+
+                        const filesTrigger = (() => {
+                          if (!hasFiles) return null;
+                          return (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setMetaOpen((prev) =>
+                                  prev === "files" ? null : "files"
+                                )
+                              }
+                              className="flex flex-shrink-0 cursor-pointer items-center gap-2 px-[18px] py-3 text-left text-sm hover:bg-accent/50 transition-colors"
+                              aria-expanded={metaOpen === "files"}
+                            >
+                              <FileIcon size={16} />
+                              Files (State)
+                              <span className="h-4 min-w-4 rounded-full bg-[#2F6868] px-0.5 text-center text-[10px] leading-[16px] text-white">
+                                {Object.keys(files).length}
+                              </span>
+                            </button>
+                          );
+                        })();
+
+                        return (
+                          <div className="grid grid-cols-[1fr_auto_auto] items-center">
+                            {tasksTrigger}
+                            {filesTrigger}
+                          </div>
+                        );
+                      })()}
+                    </>
+                  )}
+
+                  {metaOpen && (
+                    <>
+                      <div className="sticky top-0 flex items-stretch bg-sidebar text-sm">
+                        {hasTasks && (
+                          <button
+                            type="button"
+                            className={cn("py-3 pr-4 first:pl-[18px] aria-expanded:font-semibold hover:text-foreground/80 transition-colors", metaOpen === "tasks" && "font-semibold")}
+                            onClick={() =>
+                              setMetaOpen((prev) =>
+                                prev === "tasks" ? null : "tasks"
+                              )
+                            }
+                            aria-expanded={metaOpen === "tasks"}
+                          >
+                            Tasks
+                          </button>
+                        )}
+                        {hasFiles && (
+                          <button
+                            type="button"
+                            className={cn("inline-flex items-center gap-2 py-3 pr-4 first:pl-[18px] aria-expanded:font-semibold hover:text-foreground/80 transition-colors", metaOpen === "files" && "font-semibold")}
+                            onClick={() =>
+                              setMetaOpen((prev) =>
+                                prev === "files" ? null : "files"
+                              )
+                            }
+                            aria-expanded={metaOpen === "files"}
+                          >
+                            Files (State)
+                            <span className="h-4 min-w-4 rounded-full bg-[#2F6868] px-0.5 text-center text-[10px] leading-[16px] text-white">
+                              {Object.keys(files).length}
+                            </span>
+                          </button>
+                        )}
+                        <button
+                          aria-label="Close"
+                          className="flex-1"
+                          onClick={() => setMetaOpen(null)}
+                        />
+                      </div>
+                      <div
+                        ref={tasksContainerRef}
+                        className="px-[18px]"
+                      >
+                        {metaOpen === "tasks" &&
+                          Object.entries(groupedTodos)
+                            .filter(([_, todos]) => todos.length > 0)
+                            .map(([status, todos]) => (
+                              <div
+                                key={status}
+                                className="mb-4"
+                              >
+                                <h3 className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                                  {
+                                    {
+                                      pending: "Pending",
+                                      in_progress: "In Progress",
+                                      completed: "Completed",
+                                    }[status]
+                                  }
+                                </h3>
+                                <div className="grid grid-cols-[auto_1fr] gap-3 rounded-sm p-1 pl-0 text-sm">
+                                  {todos.map((todo, index) => (
+                                    <Fragment key={`${status}_${todo.id}_${index}`}>
+                                      {getStatusIcon(todo.status, "mt-0.5")}
+                                      <span className="break-words text-inherit">
+                                        {todo.content}
+                                      </span>
+                                    </Fragment>
+                                  ))}
+                                </div>
+                              </div>
+                            ))}
+
+                        {metaOpen === "files" && (
+                          <div className="mb-6">
+                            <FilesPopover
+                              files={files}
+                              setFiles={setFiles}
+                              editDisabled={
+                                stream.isLoading === true || stream.interrupt !== undefined
+                              }
+                            />
+                          </div>
+                        )}
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
+              <form
+                onSubmit={handleSubmit}
+                className="flex flex-col"
               >
-                <XIcon className="size-5" />
-              </button>
+                <ContentBlocksPreview
+                  blocks={contentBlocks}
+                  onRemove={removeBlock}
+                />
+                <textarea
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onPaste={handlePaste}
+                  onKeyDown={(e) => {
+                    if (
+                      e.key === "Enter" &&
+                      !e.shiftKey &&
+                      !e.metaKey &&
+                      !e.nativeEvent.isComposing
+                    ) {
+                      e.preventDefault();
+                      const el = e.target as HTMLElement | undefined;
+                      const form = el?.closest("form");
+                      form?.requestSubmit();
+                    }
+                  }}
+                  placeholder={stream.isLoading ? "Running..." : "대화 내용을 입력하세요..."}
+                  className="font-inherit field-sizing-content flex-1 resize-none border-0 bg-transparent px-[18px] pb-[13px] pt-[14px] text-sm leading-7 text-primary outline-none placeholder:text-muted-foreground"
+                  rows={1}
+                />
+                <div className="flex justify-between gap-2 p-3">
+                  <div className="flex items-center gap-2">
+                      <Label
+                        htmlFor="file-input"
+                        className="flex cursor-pointer items-center justify-center rounded-md p-2 text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+                      >
+                        <Plus className="size-5" />
+                        <span className="sr-only">Upload</span>
+                      </Label>
+                      <input
+                        id="file-input"
+                        type="file"
+                        onChange={handleFileUpload}
+                        multiple
+                        accept="image/jpeg,image/png,image/gif,image/webp,application/pdf"
+                        className="hidden"
+                      />
+                       <div className="flex items-center space-x-2">
+                          <Switch
+                            id="render-tool-calls"
+                            checked={hideToolCalls ?? false}
+                            onCheckedChange={setHideToolCalls}
+                            className="scale-75"
+                          />
+                          <Label
+                            htmlFor="render-tool-calls"
+                            className="text-xs text-muted-foreground"
+                          >
+                            Tools
+                          </Label>
+                       </div>
+                  </div>
+
+                  <div className="flex justify-end gap-2">
+                    <Button
+                      type={stream.isLoading ? "button" : "submit"}
+                      variant={stream.isLoading ? "destructive" : "default"}
+                      onClick={stream.isLoading ? () => stream.stop() : undefined}
+                      disabled={!stream.isLoading && (isLoading || (!input.trim() && contentBlocks.length === 0))}
+                      size="icon"
+                      className="rounded-full w-8 h-8"
+                    >
+                      {stream.isLoading ? (
+                        <Square size={14} className="fill-current" />
+                      ) : (
+                        <ArrowUp size={18} />
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              </form>
             </div>
-            <ArtifactContent className="relative flex-grow" />
           </div>
+        </motion.div>
+        
+        {/* Right Artifact Panel - Conditionally rendered only when artifactOpen */}
+        {artifactOpen && (
+        <div
+          className={cn(
+            "relative flex flex-col border-l transition-all duration-300 ease-in-out w-full border-l-0" 
+          )}
+        >
+            <div className="absolute inset-0 flex min-w-[30vw] flex-col">
+              <div className="grid grid-cols-[1fr_auto] border-b p-4">
+                <ArtifactTitle className="truncate overflow-hidden" />
+                <button
+                  onClick={closeArtifact}
+                  className="cursor-pointer"
+                >
+                  <XIcon className="size-5" />
+                </button>
+              </div>
+              <ArtifactContent className="relative flex-grow" />
+            </div>
         </div>
+        )}
       </div>
 
       <Sheet

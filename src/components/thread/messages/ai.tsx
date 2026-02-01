@@ -1,4 +1,7 @@
 import { parsePartialJson } from "@langchain/core/output_parsers";
+import { useState } from "react";
+import { SubAgentIndicator } from "../SubAgentIndicator";
+import { SubAgent } from "../types";
 import { useStreamContext } from "@/providers/Stream";
 import { AIMessage, Checkpoint, Message } from "@langchain/langgraph-sdk";
 import { getContentString } from "../utils";
@@ -141,76 +144,163 @@ export function AssistantMessage({
   const hasAnthropicToolCalls = !!anthropicStreamedToolCalls?.length;
   const isToolResult = message?.type === "tool";
 
-  if (isToolResult && hideToolCalls) {
+  // Collect tool results from the thread
+  const toolResultsMap: Record<string, any> = {};
+  if (hasToolCalls) {
+    message.tool_calls?.forEach((tc) => {
+      if (!tc.id) return;
+      const toolMessage = thread.messages.find(
+        (m) => m.type === "tool" && (m as any).tool_call_id === tc.id
+      );
+      if (toolMessage) {
+         let parsedContent = toolMessage.content;
+         try {
+            if (typeof toolMessage.content === "string") {
+                const parsed = JSON.parse(toolMessage.content);
+                parsedContent = parsed;
+            }
+         } catch {}
+         toolResultsMap[tc.id] = parsedContent;
+      }
+    });
+  }
+
+  // Hide standalone ToolMessages because they are now rendered inside the AI Message
+  if (isToolResult) {
     return null;
   }
+
+  // Extract SubAgents
+  const toolCalls = (message as AIMessage)?.tool_calls || [];
+  const subAgents = toolCalls
+    .filter((tc: any) => tc.name === "task" && tc.args["subagent_type"])
+    .map((tc: any) => ({
+      id: tc.id || "",
+      name: tc.name,
+      subAgentName: tc.args["subagent_type"],
+      input: tc.args,
+      output: toolResultsMap[tc.id || ""] ? { result: toolResultsMap[tc.id || ""] } : undefined,
+      status: "completed",
+    })) as SubAgent[] || [];
+
+  // Filter out task tool calls from regular display
+  const regularToolCalls = toolCalls.filter((tc: any) => tc.name !== "task") || [];
+
+  const [expandedSubAgents, setExpandedSubAgents] = useState<Record<string, boolean>>({});
+  const toggleSubAgent = (id: string) => {
+    setExpandedSubAgents(prev => ({ ...prev, [id]: !prev[id] }));
+  };
+
+  const { values } = thread;
+  const customComponents = values.ui?.filter(
+    (ui: any) => ui.metadata?.message_id === message?.id,
+  );
+  const hasCustomComponents = customComponents && customComponents.length > 0;
+
+  const hasVisibleContent =
+    contentString.length > 0 ||
+    subAgents.length > 0 ||
+    (!hideToolCalls && (hasToolCalls || hasAnthropicToolCalls)) ||
+    hasCustomComponents ||
+    (isLastMessage && threadInterrupt);
+
+  if (!hasVisibleContent) return null;
 
   return (
     <div className="group mr-auto flex w-full items-start gap-2">
       <div className="flex w-full flex-col gap-2">
-        {isToolResult ? (
-          <>
-            <ToolResult message={message} />
-            <Interrupt
-              interrupt={threadInterrupt}
-              isLastMessage={isLastMessage}
-              hasNoAIOrToolMessages={hasNoAIOrToolMessages}
-            />
-          </>
-        ) : (
-          <>
-            {contentString.length > 0 && (
-              <div className="py-1">
-                <MarkdownText>{contentString}</MarkdownText>
+        {/* Helper for text content */}
+        {contentString.length > 0 && (
+          <div className="py-1">
+            <MarkdownText>{contentString}</MarkdownText>
+          </div>
+        )}
+
+        {/* SubAgents Display */}
+        {subAgents.length > 0 && (
+          <div className="flex w-fit max-w-full flex-col gap-4 my-2">
+            {subAgents.map((subAgent) => (
+              <div key={subAgent.id} className="flex w-full flex-col gap-2">
+                 <div className="w-[calc(100%-20px)]">
+                    <SubAgentIndicator
+                      subAgent={subAgent}
+                      onClick={() => toggleSubAgent(subAgent.id)}
+                      isExpanded={expandedSubAgents[subAgent.id] ?? true}
+                    />
+                 </div>
+                 {(expandedSubAgents[subAgent.id] ?? true) && (
+                    <div className="w-full max-w-full pl-4">
+                      <div className="bg-muted/30 rounded-md border border-border/50 p-4">
+                        <h4 className="text-muted-foreground mb-2 text-[10px] font-semibold uppercase tracking-wider">
+                          Input
+                        </h4>
+                        <div className="mb-4 text-xs">
+                          <MarkdownText>{JSON.stringify(subAgent.input, null, 2)}</MarkdownText>
+                        </div>
+                        {subAgent.output && (
+                          <>
+                            <h4 className="text-muted-foreground mb-2 text-[10px] font-semibold uppercase tracking-wider">
+                              Output
+                            </h4>
+                             <div className="text-xs">
+                                <MarkdownText>{typeof subAgent.output.result === 'string' ? subAgent.output.result : JSON.stringify(subAgent.output.result, null, 2)}</MarkdownText>
+                             </div>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                 )}
               </div>
-            )}
+            ))}
+          </div>
+        )}
 
-            {!hideToolCalls && (
-              <>
-                {(hasToolCalls && toolCallsHaveContents && (
-                  <ToolCalls toolCalls={message.tool_calls} />
-                )) ||
-                  (hasAnthropicToolCalls && (
-                    <ToolCalls toolCalls={anthropicStreamedToolCalls} />
-                  )) ||
-                  (hasToolCalls && (
-                    <ToolCalls toolCalls={message.tool_calls} />
-                  ))}
-              </>
-            )}
-
-            {message && (
-              <CustomComponent
-                message={message}
-                thread={thread}
-              />
-            )}
-            <Interrupt
-              interrupt={threadInterrupt}
-              isLastMessage={isLastMessage}
-              hasNoAIOrToolMessages={hasNoAIOrToolMessages}
-            />
-            <div
-              className={cn(
-                "mr-auto flex items-center gap-2 transition-opacity",
-                "opacity-0 group-focus-within:opacity-100 group-hover:opacity-100",
-              )}
-            >
-              <BranchSwitcher
-                branch={meta?.branch}
-                branchOptions={meta?.branchOptions}
-                onSelect={(branch) => thread.setBranch(branch)}
-                isLoading={isLoading}
-              />
-              <CommandBar
-                content={contentString}
-                isLoading={isLoading}
-                isAiMessage={true}
-                handleRegenerate={() => handleRegenerate(parentCheckpoint)}
-              />
-            </div>
+        {!hideToolCalls && (
+          <>
+            {(hasToolCalls && toolCallsHaveContents && (
+              <ToolCalls toolCalls={regularToolCalls} toolResults={toolResultsMap} />
+            )) ||
+              (hasAnthropicToolCalls && (
+                <ToolCalls toolCalls={anthropicStreamedToolCalls} />
+              )) ||
+              (hasToolCalls && (
+                <ToolCalls toolCalls={regularToolCalls} toolResults={toolResultsMap} />
+              ))}
           </>
         )}
+
+        {message && (
+          <CustomComponent
+            message={message}
+            thread={thread}
+          />
+        )}
+        <Interrupt
+          interrupt={threadInterrupt}
+          isLastMessage={isLastMessage}
+          hasNoAIOrToolMessages={hasNoAIOrToolMessages}
+        />
+        <div
+          className={cn(
+            "mr-auto flex items-center gap-2 transition-opacity",
+            "opacity-0 group-focus-within:opacity-100 group-hover:opacity-100",
+          )}
+        >
+          <BranchSwitcher
+            branch={meta?.branch}
+            branchOptions={meta?.branchOptions}
+            onSelect={(branch) => thread.setBranch(branch)}
+            isLoading={isLoading}
+          />
+          {contentString.length > 0 && (
+            <CommandBar
+              content={contentString}
+              isLoading={isLoading}
+              isAiMessage={true}
+              handleRegenerate={() => handleRegenerate(parentCheckpoint)}
+            />
+          )}
+        </div>
       </div>
     </div>
   );
