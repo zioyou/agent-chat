@@ -109,10 +109,30 @@ export function HumanMessage({
                 )}
               </div>
             )}
-            {/* Render text if present, otherwise fallback to file/image name */}
+            {/* Render Saved File if detected in system message (Restore UI) */}
+            {(() => {
+                const match = contentString.match(/\[System\] File '(.*)' has been saved/);
+                if (match) {
+                    const filename = match[1];
+                    // Create a fake block to reuse MultimodalPreview logic
+                    const fakeBlock: any = {
+                        type: "file",
+                        mimeType: "application/octet-stream", 
+                        metadata: { filename: filename, name: filename }
+                    };
+                    return (
+                        <div className="flex flex-wrap items-end justify-end gap-2 mb-2">
+                             <MultimodalPreview block={fakeBlock} size="md" />
+                        </div>
+                    );
+                }
+                return null;
+            })()}
+            {/* Render text if present, masking [System] messages */}
             {contentString ? (
               <p className="bg-muted ml-auto w-fit rounded-3xl px-4 py-2 whitespace-pre-wrap">
-                {contentString}
+                {contentString.replace(/\[System\] File '.*' has been saved to the server at:[\s\S]*?(?=\n\n|$)/g, "")
+                              .replace(/^\s*[\r\n]/gm, "")}
               </p>
             ) : null}
           </div>
@@ -133,7 +153,8 @@ export function HumanMessage({
           />
           <CommandBar
             isLoading={isLoading}
-            content={contentString}
+            content={contentString.replace(/\[System\] File '.*' has been saved to the server at:[\s\S]*?(?=\n\n|$)/g, "")
+                                  .replace(/^\s*[\r\n]/gm, "")}
             isEditing={isEditing}
             setIsEditing={(c) => {
               if (c) {

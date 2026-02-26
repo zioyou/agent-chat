@@ -3,6 +3,7 @@ import { ReactNode, useEffect, useRef, useState, FormEvent, Fragment } from "rea
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { useStreamContext } from "@/providers/Stream";
+import { SettingsDialog } from "@/components/settings/SettingsDialog";
 import { TasksFilesSidebar } from "./TasksFilesSidebar";
 import { ToolResult } from "./messages/tool-calls";
 import { Message, Checkpoint } from "@langchain/langgraph-sdk";
@@ -37,6 +38,7 @@ import {
   ChevronDown,
   Square,
   ArrowUp,
+  Settings,
 } from "lucide-react";
 import { FilesPopover } from "./TasksFilesSidebar";
 import {
@@ -520,8 +522,14 @@ export function Thread() {
 
     const toolMessages = ensureToolCallsHaveResponses(stream.messages);
 
-    const context =
-      Object.keys(artifactContext).length > 0 ? artifactContext : undefined;
+    // Inject user_secrets from localStorage
+    const storedSecrets = localStorage.getItem("agent_user_secrets");
+    const userSecrets = storedSecrets ? JSON.parse(storedSecrets) : {};
+
+    const context = {
+      ...(Object.keys(artifactContext).length > 0 ? artifactContext : undefined),
+      user_secrets: userSecrets,
+    };
 
     stream.submit(
       { messages: [...toolMessages, newHumanMessage], context },
@@ -658,7 +666,7 @@ export function Thread() {
               : { duration: 0 }
           }
         >
-            <div className="absolute top-0 left-0 z-10 flex w-full items-center justify-between gap-3 p-2 pl-4">
+            <div className="absolute top-0 left-0 z-10 flex w-full items-center justify-between gap-3 bg-white/95 backdrop-blur-sm p-2 pl-4">
               <div>
                 {(!chatHistoryOpen || !isLargeScreen) && (
                   <Button
@@ -675,6 +683,20 @@ export function Thread() {
                 )}
               </div>
               <div className="flex items-center gap-4 pr-2">
+                <SettingsDialog
+                  trigger={
+                    <TooltipIconButton
+                      size="lg"
+                      className="p-4"
+                      tooltip="Settings"
+                      variant="ghost"
+                    >
+                      <Settings className="size-5" />
+                    </TooltipIconButton>
+                  }
+                />
+                
+                {/* New Chat button moved to sidebar
                 <TooltipIconButton
                   size="lg"
                   className="p-4"
@@ -686,6 +708,7 @@ export function Thread() {
                 >
                   <SquarePen className="size-5" />
                 </TooltipIconButton>
+                */}
 
                 <TooltipIconButton
                   size="lg"
@@ -700,7 +723,7 @@ export function Thread() {
                 <TooltipIconButton
                   size="lg"
                   className="p-4"
-                  tooltip="에이전트 변경"
+                  tooltip="Switch Agent"
                   variant="ghost"
                   onClick={() => {
                     setAssistantId(null);
@@ -724,8 +747,6 @@ export function Thread() {
                   <LogOut className="size-5" />
                 </TooltipIconButton>
               </div>
-
-
             </div>
 
           <StickToBottom className="relative flex-1 overflow-hidden">
@@ -735,7 +756,7 @@ export function Thread() {
                 !chatStarted && "flex flex-col items-center justify-center",
                 chatStarted && "grid grid-rows-[1fr_auto]",
               )}
-              contentClassName={cn("pt-8 pb-16 max-w-3xl mx-auto flex flex-col gap-4 w-full", !chatStarted && "h-full justify-center")}
+              contentClassName={cn("pt-20 pb-16 max-w-3xl mx-auto flex flex-col gap-4 w-full", !chatStarted && "h-full justify-center")}
               content={
                 <>
                   {!chatStarted && assistantInfo ? (
@@ -816,7 +837,7 @@ export function Thread() {
                         const totalTasks = todos.length;
                         const remainingTasks =
                           totalTasks - groupedTodos.pending.length;
-                        const isCompleted = totalTasks === remainingTasks;
+                        const isCompleted = todos.every((t) => t.status === "completed");
 
                         const tasksTrigger = (() => {
                           if (!hasTasks) return null;
@@ -1054,7 +1075,7 @@ export function Thread() {
                         type="file"
                         onChange={handleFileUpload}
                         multiple
-                        accept="image/jpeg,image/png,image/gif,image/webp,application/pdf"
+                        accept="*"
                         className="hidden"
                       />
                        <div className="flex items-center space-x-2">

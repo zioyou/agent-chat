@@ -99,7 +99,9 @@ export const MultimodalPreview: React.FC<MultimodalPreviewProps> = ({
       )}
     >
       <File className="h-5 w-5 flex-shrink-0" />
-      <span className="truncate text-xs">Unsupported file type</span>
+      <span className="truncate text-xs max-w-[200px]" title={String(block.metadata?.filename || block.metadata?.name || "File")}>
+        {String(block.metadata?.filename || block.metadata?.name || "File")}
+      </span>
       {removable && (
         <button
           type="button"

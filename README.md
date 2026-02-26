@@ -27,13 +27,13 @@ The app will be available at `http://localhost:3001`.
 
 ## Usage
 
-Once the app is running (or if using the deployed site), you'll be prompted to enter:
-
-- **Deployment URL**: The URL of the LangGraph server you want to chat with. This can be a production or development URL.
-- **Assistant/Graph ID**: The name of the graph, or ID of the assistant to use when fetching, and submitting runs via the chat interface.
-- **LangSmith API Key**: (only required for connecting to deployed LangGraph servers) Your LangSmith API key to use when authenticating requests sent to LangGraph servers.
-
-After entering these values, click `Continue`. You'll then be redirected to a chat interface where you can start chatting with your LangGraph server.
+1. **Start the Application**: Once the app is running, navigate to `http://localhost:3001`.
+2. **Initial Setup (Optional)**: If not configured via environment variables, you'll be prompted to enter the **Deployment URL** (e.g., `http://localhost:8002` for local backend) and the **Assistant ID** (e.g., `agent`).
+3. **Configure Tool Credentials (Settings)**:
+   - Click the ⚙️ **Settings** icon in the chat interface.
+   - Enter your credentials for external tools (e.g., Kakao API keys, Slack Webhooks, Google OAuth Client ID/Secret).
+   - _Note: These credentials are securely stored in your browser's `localStorage` and sent only when required by specific agents._
+4. **Chat Management**: You can manage your past conversations using the chat history sidebar. You can also delete threads to keep your workspace clean.
 
 ## Environment Variables
 
