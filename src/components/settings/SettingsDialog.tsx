@@ -16,9 +16,6 @@ import { toast } from "sonner";
 import { PasswordInput } from "@/components/ui/password-input";
 
 interface UserSecrets {
-  kakao_client_id?: string;
-  kakao_access_token?: string;
-  kakao_refresh_token?: string;
   slack_webhook_url?: string;
   gmail_id?: string;
   gmail_app_password?: string;
@@ -98,43 +95,6 @@ export function SettingsDialog({
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-6 py-4">
-          {/* KakaoTalk */}
-          <div className="space-y-2">
-            <h4 className="font-medium leading-none">KakaoTalk</h4>
-            <p className="text-xs text-muted-foreground mb-2">
-              토큰 갱신을 위해 REST API Key와 Refresh Token이 필요합니다.
-            </p>
-            <div className="grid gap-2">
-              <Label htmlFor="kakao_client_id">REST API Key (Client ID)</Label>
-              <PasswordInput
-                id="kakao_client_id"
-                value={secrets.kakao_client_id || ""}
-                onChange={(e) => handleChange("kakao_client_id", e.target.value)}
-                placeholder="Kakao Developers REST API Key"
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="kakao_access_token">Access Token</Label>
-              <PasswordInput
-                id="kakao_access_token"
-                value={secrets.kakao_access_token || ""}
-                onChange={(e) => handleChange("kakao_access_token", e.target.value)}
-                placeholder="Initial Access Token"
-              />
-            </div>
-             <div className="grid gap-2">
-              <Label htmlFor="kakao_refresh_token">Refresh Token</Label>
-              <PasswordInput
-                id="kakao_refresh_token"
-                value={secrets.kakao_refresh_token || ""}
-                onChange={(e) => handleChange("kakao_refresh_token", e.target.value)}
-                placeholder="Refresh Token for auto-renewal"
-              />
-            </div>
-          </div>
-
-
-
           {/* Google Calendar / Gmail (OAuth) */}
           <div className="space-y-4 pt-4 border-t">
              <h4 className="font-medium leading-none">Google Service (Calendar/Gmail)</h4>
