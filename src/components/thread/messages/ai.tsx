@@ -17,6 +17,7 @@ import { ThreadView } from "../agent-inbox";
 import { useQueryState, parseAsBoolean } from "nuqs";
 import { GenericInterruptView } from "./generic-interrupt";
 import { useArtifact } from "../artifact";
+import { AgentListTiles, AgentInfo } from "../AgentListTiles";
 
 function CustomComponent({
   message,
@@ -209,6 +210,32 @@ export function AssistantMessage({
   return (
     <div className="group mr-auto flex w-full items-start gap-2">
       <div className="flex w-full flex-col gap-2">
+        {/* Bypass LLM Rendering: Force-render AgentListTiles if the tool was called */}
+        {hasToolCalls &&
+          message.tool_calls?.map((tc) => {
+            if (tc.name === "ask_ontology_system" && toolResultsMap[tc.id || ""]) {
+              let parsedTokens: any = toolResultsMap[tc.id || ""];
+              try {
+                // If it's still a raw string with <agent-list-data> wrapped, clean it
+                if (typeof parsedTokens === "string") {
+                  const match = parsedTokens.match(/<agent-list-data>([\s\S]*?)<\/agent-list-data>/);
+                  const inner = match ? match[1] : parsedTokens;
+                  parsedTokens = JSON.parse(inner.trim());
+                }
+              } catch (e) {
+                console.error("Agent data parse error:", e);
+              }
+              if (parsedTokens?.type === "agent_list" && Array.isArray(parsedTokens.agents)) {
+                return (
+                  <div key={tc.id} className="py-2">
+                    <AgentListTiles agents={parsedTokens.agents as AgentInfo[]} />
+                  </div>
+                );
+              }
+            }
+            return null;
+          })}
+
         {/* Helper for text content */}
         {contentString.length > 0 && (
           <div className="py-1">

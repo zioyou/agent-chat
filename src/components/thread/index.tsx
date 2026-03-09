@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { useStreamContext } from "@/providers/Stream";
 import { SettingsDialog } from "@/components/settings/SettingsDialog";
 import { TasksFilesSidebar } from "./TasksFilesSidebar";
+import { useRefreshStream } from "@/providers/Stream";
 import { ToolResult } from "./messages/tool-calls";
 import { Message, Checkpoint } from "@langchain/langgraph-sdk";
 
@@ -399,6 +400,8 @@ export function Thread() {
   const [input, setInput] = useState("");
   const [assistantInfo, setAssistantInfo] = useState<{ name: string; description: string; graph_id?: string } | null>(null);
 
+  const refreshStream = useRefreshStream();
+
   // 어시스턴트 정보 조회
   useEffect(() => {
     if (apiUrl && assistantId) {
@@ -432,6 +435,34 @@ export function Thread() {
   // Extract todos and files from stream values
   const todos = (stream as any).todos ?? (stream as any).values?.todos ?? [];
   const files = (stream as any).files ?? (stream as any).values?.files ?? {};
+
+  // Poll for background resume: if the webhook resumes the graph in the backend,
+  // the SSE listener won't know. We poll the state to refresh when done.
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (stream.interrupt !== undefined && threadId && apiUrl) {
+      interval = setInterval(async () => {
+        try {
+          const res = await fetch(`${apiUrl}/threads/${threadId}/history`, {
+            headers: { "X-Api-Key": getApiKey() || "" }
+          });
+          if (res.ok) {
+            const historyData = await res.json();
+            if (historyData && historyData.length > 0) {
+              const stateData = historyData[0];
+              // If the thread is no longer interrupted/pending, trigger soft refresh
+              if (stateData.next && stateData.next.length === 0 && !stateData.tasks?.some((t: any) => t.interrupts?.length > 0)) {
+                refreshStream();
+              }
+            }
+          }
+        } catch (e) {
+          console.error("Polling error", e);
+        }
+      }, 3000);
+    }
+    return () => clearInterval(interval);
+  }, [stream.interrupt, threadId, apiUrl]);
 
   const [artifactOpen, closeArtifact] = useArtifactOpen();
   const [artifactContext, setArtifactContext] = useArtifactContext();
@@ -1041,6 +1072,7 @@ export function Thread() {
                   onRemove={removeBlock}
                 />
                 <textarea
+                  disabled={stream.isLoading || stream.interrupt !== undefined}
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   onPaste={handlePaste}
@@ -1057,8 +1089,8 @@ export function Thread() {
                       form?.requestSubmit();
                     }
                   }}
-                  placeholder={stream.isLoading ? "Running..." : "대화 내용을 입력하세요..."}
-                  className="font-inherit field-sizing-content flex-1 resize-none border-0 bg-transparent px-[18px] pb-[13px] pt-[14px] text-sm leading-7 text-primary outline-none placeholder:text-muted-foreground"
+                  placeholder={stream.isLoading ? "Running..." : (stream.interrupt !== undefined ? "서브 에이전트 대기 중..." : "대화 내용을 입력하세요...")}
+                  className="font-inherit field-sizing-content flex-1 resize-none border-0 bg-transparent px-[18px] pb-[13px] pt-[14px] text-sm leading-7 text-primary outline-none placeholder:text-muted-foreground disabled:opacity-50 disabled:cursor-not-allowed"
                   rows={1}
                 />
                 <div className="flex justify-between gap-2 p-3">
@@ -1099,7 +1131,7 @@ export function Thread() {
                       type={stream.isLoading ? "button" : "submit"}
                       variant={stream.isLoading ? "destructive" : "default"}
                       onClick={stream.isLoading ? () => stream.stop() : undefined}
-                      disabled={!stream.isLoading && (isLoading || (!input.trim() && contentBlocks.length === 0))}
+                      disabled={(!stream.isLoading && (isLoading || (!input.trim() && contentBlocks.length === 0))) || stream.interrupt !== undefined}
                       size="icon"
                       className="rounded-full w-8 h-8"
                     >

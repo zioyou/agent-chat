@@ -13,6 +13,7 @@ import { SyntaxHighlighter } from "@/components/thread/syntax-highlighter";
 
 import { TooltipIconButton } from "@/components/thread/tooltip-icon-button";
 import { cn } from "@/lib/utils";
+import { AgentListTiles, AgentInfo } from "./AgentListTiles";
 
 import "katex/dist/katex.min.css";
 
@@ -113,12 +114,33 @@ const defaultComponents: any = {
       {...props}
     />
   ),
-  p: ({ className, ...props }: { className?: string }) => (
-    <p
-      className={cn("mt-5 mb-5 leading-7 first:mt-0 last:mb-0", className)}
-      {...props}
-    />
-  ),
+  p: ({ className, children, ...props }: { className?: string; children?: React.ReactNode }) => {
+    // If paragraph contains raw <agent-list-data> text, catch it here and swap.
+    const textContent = String(children);
+    if (textContent.includes("<agent-list-data>")) {
+      try {
+        const jsonMatch = textContent.match(/<agent-list-data>([\s\S]*?)<\/agent-list-data>/);
+        if (jsonMatch) {
+          const parsedData = JSON.parse(jsonMatch[1].trim());
+          if (parsedData.type === "agent_list" && Array.isArray(parsedData.agents)) {
+            return <AgentListTiles agents={parsedData.agents as AgentInfo[]} />;
+          }
+        }
+      } catch (e) {
+        // Fallback to streaming block if not fully formed
+        return <div className="animate-pulse space-y-4 my-6 opacity-50"><div className="h-24 bg-muted rounded-2xl w-full max-w-sm"></div></div>;
+      }
+    }
+
+    return (
+      <p
+        className={cn("mt-5 mb-5 leading-7 first:mt-0 last:mb-0", className)}
+        {...props}
+      >
+        {children}
+      </p>
+    );
+  },
   a: ({ className, ...props }: { className?: string }) => (
     <a
       className={cn(
@@ -217,6 +239,26 @@ const defaultComponents: any = {
       const language = match[1];
       const code = String(children).replace(/\n$/, "");
 
+      // Some LLMs might wrap the custom HTML tag inside an `xml` or `html` code block
+      if ((language === "xml" || language === "html" || language === "json") && code.includes("<agent-list-data>")) {
+        try {
+          // Extract the JSON payload from inside the XML tags
+          const jsonMatch = code.match(/<agent-list-data>([\s\S]*?)<\/agent-list-data>/);
+          const rawJsonStr = jsonMatch ? jsonMatch[1].trim() : code.trim();
+          const parsedData = JSON.parse(rawJsonStr);
+          if (parsedData.type === "agent_list" && Array.isArray(parsedData.agents)) {
+            return <AgentListTiles agents={parsedData.agents as AgentInfo[]} />;
+          }
+        } catch (e) {
+          // Fallback to normal rendering if parsing fails or stream is incomplete
+          if (code.includes('"type"')) { // Likely still streaming JSON
+            return <div className="animate-pulse space-y-4 my-6 opacity-50">
+              <div className="h-24 bg-muted rounded-2xl w-full max-w-sm"></div>
+            </div>;
+          }
+        }
+      }
+
       return (
         <>
           <CodeHeader
@@ -241,6 +283,23 @@ const defaultComponents: any = {
         {children}
       </code>
     );
+  },
+  "agent-list-data": ({ children }: { children: React.ReactNode }) => {
+    try {
+      const code = String(children).trim();
+      if (!code) return null; // Wait for stream
+      
+      const parsedData = JSON.parse(code);
+      if (parsedData.type === "agent_list" && Array.isArray(parsedData.agents)) {
+        return <AgentListTiles agents={parsedData.agents as AgentInfo[]} />;
+      }
+    } catch (e) {
+      // Stream in progress: return a loading state or nothing instead of throwing
+      return <div className="animate-pulse space-y-4 my-6 opacity-50">
+        <div className="h-24 bg-muted rounded-2xl w-full max-w-sm"></div>
+      </div>;
+    }
+    return null;
   },
 };
 

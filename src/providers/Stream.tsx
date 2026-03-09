@@ -24,6 +24,16 @@ import { getApiKey } from "@/lib/api-key";
 import { useThreads } from "./Thread";
 import { toast } from "sonner";
 
+export const RefreshStreamContext = createContext<(() => void) | undefined>(undefined);
+
+export function useRefreshStream() {
+  const context = useContext(RefreshStreamContext);
+  if (context === undefined) {
+    throw new Error("useRefreshStream must be used within a RefreshStreamProvider");
+  }
+  return context;
+}
+
 export type StateType = { messages: Message[]; ui?: UIMessage[] };
 
 const useTypedStream = useStream<
@@ -132,6 +142,8 @@ const DEFAULT_ASSISTANT_ID = "agent";
 export const StreamProvider: React.FC<{ children: ReactNode }> = ({
   children,
 }) => {
+  const [refreshKey, setRefreshKey] = useState(0);
+  const refreshStream = () => setRefreshKey((prev) => prev + 1);
   // Get environment variables
   const envApiUrl: string | undefined = process.env.NEXT_PUBLIC_API_URL;
   const envAssistantId: string | undefined =
@@ -463,13 +475,16 @@ export const StreamProvider: React.FC<{ children: ReactNode }> = ({
   }
 
   return (
-    <StreamSession
-      apiKey={apiKey}
-      apiUrl={apiUrl}
-      assistantId={assistantId}
-    >
-      {children}
-    </StreamSession>
+    <RefreshStreamContext.Provider value={refreshStream}>
+      <StreamSession
+        key={refreshKey}
+        apiKey={apiKey}
+        apiUrl={finalApiUrl || ""}
+        assistantId={finalAssistantId || ""}
+      >
+        {children}
+      </StreamSession>
+    </RefreshStreamContext.Provider>
   );
 };
 

@@ -42,7 +42,7 @@ function renderInterruptStateItem(value: any): React.ReactNode {
 export function GenericInterruptView({
   interrupt,
 }: {
-  interrupt: Record<string, any> | Record<string, any>[];
+  interrupt: Record<string, any> | Record<string, any>[] | string;
 }) {
   const [isExpanded, setIsExpanded] = useState(false);
 
@@ -77,10 +77,13 @@ export function GenericInterruptView({
 
   // Process entries based on expanded state
   const processEntries = () => {
+    if (typeof interrupt === "string" || typeof interrupt === "number" || typeof interrupt === "boolean") {
+       return [["Message", interrupt]];
+    }
     if (Array.isArray(interrupt)) {
       return isExpanded ? interrupt : interrupt.slice(0, 5);
     } else {
-      const entries = Object.entries(interrupt);
+      const entries = Object.entries(interrupt || {});
       if (!isExpanded && shouldTruncate) {
         // When collapsed, process each value to potentially truncate it
         return entries.map(([key, value]) => [key, truncateValue(value)]);
