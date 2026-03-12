@@ -551,7 +551,7 @@ export function Thread() {
       ] as Message["content"],
     };
 
-    const toolMessages = ensureToolCallsHaveResponses(stream.messages);
+    const currentMessages = stream.messages || [];
 
     // Inject user_secrets from localStorage
     const storedSecrets = localStorage.getItem("agent_user_secrets");
@@ -563,7 +563,7 @@ export function Thread() {
     };
 
     stream.submit(
-      { messages: [...toolMessages, newHumanMessage], context },
+      { messages: [...currentMessages, newHumanMessage], context },
       {
         streamMode: ["values"],
         streamSubgraphs: true,
@@ -573,7 +573,6 @@ export function Thread() {
           context,
           messages: [
             ...(prev.messages ?? []),
-            ...toolMessages,
             newHumanMessage,
           ],
         }),

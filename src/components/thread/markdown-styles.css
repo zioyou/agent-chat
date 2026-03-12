@@ -6,6 +6,15 @@
   font-size: 0.9em;
 }
 
+/* Inline code inside table cells must not expand the column */
+.markdown-content td code {
+  display: inline-block;
+  max-width: 100%;
+  overflow-wrap: break-word;
+  word-break: break-all;
+  white-space: pre-wrap;
+}
+
 .markdown-content a {
   color: #0070f3;
   text-decoration: none;
@@ -23,25 +32,6 @@
 
 .markdown-content pre {
   overflow-x: auto;
-}
-
-.markdown-content table {
-  border-collapse: collapse;
-  width: 100%;
-}
-
-.markdown-content th,
-.markdown-content td {
-  border: 1px solid #ddd;
-  padding: 8px;
-}
-
-.markdown-content th {
-  background-color: #f2f2f2;
-}
-
-.markdown-content tr:nth-child(even) {
-  background-color: #f9f9f9;
 }
 
 /* Hide raw agent-list-data tags from leaking during streaming before React Markdown intercepts them */

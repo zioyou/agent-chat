@@ -249,20 +249,20 @@ export function StateView({
   return (
     <div
       className={cn(
-        "flex min-w-full flex-row gap-0",
+        "flex w-full flex-row justify-between gap-4",
         view === "state" &&
           "border-t-[1px] border-gray-100 lg:border-t-[0px] lg:border-l-[1px]",
       )}
     >
       {view === "description" && (
-        <div className="pt-6 pb-2">
+        <div className="flex-1 min-w-0 pt-6 pb-2">
           <MarkdownText>
             {description ?? "No description provided"}
           </MarkdownText>
         </div>
       )}
       {view === "state" && (
-        <div className="flex flex-col items-start justify-start gap-1">
+        <div className="flex flex-1 min-w-0 overflow-x-auto flex-col items-start justify-start gap-1">
           {Object.entries(values).map(([k, v], idx) => (
             <StateViewObject
               expanded={expanded}
@@ -273,7 +273,7 @@ export function StateView({
           ))}
         </div>
       )}
-      <div className="flex items-start justify-end gap-2">
+      <div className="flex shrink-0 items-start justify-end gap-2">
         {view === "state" && (
           <Button
             onClick={() => setExpanded((prev) => !prev)}

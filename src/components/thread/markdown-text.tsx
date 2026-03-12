@@ -1,13 +1,14 @@
 "use client";
 
 import "./markdown-styles.css";
+import React from "react";
 
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeKatex from "rehype-katex";
 import remarkMath from "remark-math";
 import rehypeRaw from "rehype-raw";
-import { FC, memo, useState } from "react";
+import { useCallback, useRef, FC, memo, useState } from "react";
 import { CheckIcon, CopyIcon } from "lucide-react";
 import { SyntaxHighlighter } from "@/components/thread/syntax-highlighter";
 
@@ -16,6 +17,64 @@ import { cn } from "@/lib/utils";
 import { AgentListTiles, AgentInfo } from "./AgentListTiles";
 
 import "katex/dist/katex.min.css";
+
+// ============================================================
+// Resizable Table: standalone `th` with inline drag handle
+// ============================================================
+function ResizableTh({ className, children, ...props }: { className?: string; children?: React.ReactNode }) {
+  const thRef = useRef<HTMLTableCellElement>(null);
+  const dragging = useRef<{ startX: number; startWidth: number } | null>(null);
+
+  const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!thRef.current) return;
+    const startWidth = thRef.current.offsetWidth;
+    dragging.current = { startX: e.clientX, startWidth };
+    (e.currentTarget as HTMLDivElement).setPointerCapture(e.pointerId);
+    e.stopPropagation();
+    e.preventDefault();
+  };
+
+  const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!dragging.current || !thRef.current) return;
+    const delta = e.clientX - dragging.current.startX;
+    const newWidth = Math.max(60, dragging.current.startWidth + delta);
+    thRef.current.style.width = `${newWidth}px`;
+    thRef.current.style.minWidth = `${newWidth}px`;
+    thRef.current.style.maxWidth = `${newWidth}px`;
+  };
+
+  const onPointerUp = () => {
+    dragging.current = null;
+  };
+
+  return (
+    <th
+      ref={thRef}
+      className={cn(
+        "group relative select-none px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground transition-colors hover:bg-muted/80",
+        "whitespace-nowrap overflow-hidden text-ellipsis",
+        "[&[align=center]]:text-center [&[align=right]]:text-right",
+        className,
+      )}
+      style={{ position: "relative" }}
+      {...props}
+    >
+      {children}
+      {/* Resize handle: wide invisible hit area, thin visible bar */}
+      <div
+        className="absolute right-0 top-0 h-full w-3 cursor-col-resize flex items-stretch justify-center [th:last-child_&]:hidden"
+        style={{ touchAction: "none" }}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onPointerLeave={onPointerUp}
+      >
+        <div className="w-0.5 h-full opacity-0 group-hover:opacity-40 hover:!opacity-100 active:!opacity-100 bg-primary transition-opacity" />
+      </div>
+    </th>
+  );
+}
+
 
 interface CodeHeaderProps {
   language?: string;
@@ -174,37 +233,45 @@ const defaultComponents: any = {
       {...props}
     />
   ),
-  table: ({ className, ...props }: { className?: string }) => (
-    <table
-      className={cn(
-        "my-5 w-full border-separate border-spacing-0 overflow-y-auto",
-        className,
-      )}
+  table: ({ className, children }: { className?: string; children?: React.ReactNode }) => (
+    <div className="my-6 overflow-hidden rounded-xl border border-border/50 shadow-sm">
+      <div className="overflow-x-auto">
+        <table className={cn("w-full border-collapse text-sm", className)}>{children}</table>
+      </div>
+    </div>
+  ),
+  thead: ({ className, ...props }: { className?: string }) => (
+    <thead
+      className={cn("border-b border-border/50 bg-muted/60 backdrop-blur-sm", className)}
       {...props}
     />
   ),
-  th: ({ className, ...props }: { className?: string }) => (
-    <th
-      className={cn(
-        "bg-muted px-4 py-2 text-left font-bold first:rounded-tl-lg last:rounded-tr-lg [&[align=center]]:text-center [&[align=right]]:text-right",
-        className,
-      )}
+  tbody: ({ className, ...props }: { className?: string }) => (
+    <tbody
+      className={cn("divide-y divide-border/30", className)}
       {...props}
     />
   ),
-  td: ({ className, ...props }: { className?: string }) => (
+  th: ({ className, children, ...props }: { className?: string; children?: React.ReactNode }) => (
+    <ResizableTh className={className} {...props}>{children}</ResizableTh>
+  ),
+  td: ({ className, children, ...props }: { className?: string; children?: React.ReactNode }) => (
     <td
       className={cn(
-        "border-b border-l px-4 py-2 text-left last:border-r [&[align=center]]:text-center [&[align=right]]:text-right",
+        "px-4 py-3 text-sm leading-relaxed text-foreground/90 transition-colors overflow-hidden max-w-0",
+        "[&[align=center]]:text-center [&[align=right]]:text-right",
         className,
       )}
       {...props}
-    />
+    >
+      <div className="overflow-hidden">{children}</div>
+    </td>
   ),
   tr: ({ className, ...props }: { className?: string }) => (
     <tr
       className={cn(
-        "m-0 border-b p-0 first:border-t [&:last-child>td:first-child]:rounded-bl-lg [&:last-child>td:last-child]:rounded-br-lg",
+        "transition-colors hover:bg-primary/5",
+        "odd:bg-background even:bg-muted/20",
         className,
       )}
       {...props}
