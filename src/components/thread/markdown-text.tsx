@@ -277,6 +277,18 @@ const defaultComponents: any = {
       {...props}
     />
   ),
+  img: ({ src, alt }: { src?: string; alt?: string }) => {
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8002";
+    const fixedSrc = src?.startsWith("/static/") ? `${apiUrl}${src}` : src;
+    return (
+      <img
+        src={fixedSrc}
+        alt={alt || ""}
+        className="max-w-full rounded-lg my-4 shadow-md"
+        loading="lazy"
+      />
+    );
+  },
   sup: ({ className, ...props }: { className?: string }) => (
     <sup
       className={cn("[&>a]:text-xs [&>a]:no-underline", className)}
