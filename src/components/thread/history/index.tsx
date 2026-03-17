@@ -86,7 +86,10 @@ function ThreadItem({
         ? values.messages[0]
         : null;
     if (firstMessage) {
-      itemText = getContentString(firstMessage.content);
+      itemText = getContentString(firstMessage.content)
+        .replace(/\[System\] File '.*?' has been saved to the server at:[^\n]*/g, "")
+        .replace(/^\s*[\r\n]/gm, "")
+        .trim();
     }
   }
 

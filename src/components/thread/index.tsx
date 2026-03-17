@@ -433,7 +433,7 @@ export function Thread() {
   };
 
   // Extract todos and files from stream values
-  const todos = (stream as any).todos ?? (stream as any).values?.todos ?? [];
+  const todos: TodoItem[] = (stream as any).todos ?? (stream as any).values?.todos ?? [];
   const files = (stream as any).files ?? (stream as any).values?.files ?? {};
 
   // Poll for background resume: if the webhook resumes the graph in the backend,

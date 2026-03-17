@@ -145,6 +145,11 @@ export function AssistantMessage({
   const hasAnthropicToolCalls = !!anthropicStreamedToolCalls?.length;
   const isToolResult = message?.type === "tool";
 
+  const [expandedSubAgents, setExpandedSubAgents] = useState<Record<string, boolean>>({});
+  const toggleSubAgent = (id: string) => {
+    setExpandedSubAgents(prev => ({ ...prev, [id]: !prev[id] }));
+  };
+
   // Collect tool results from the thread
   const toolResultsMap: Record<string, any> = {};
   if (hasToolCalls) {
@@ -160,7 +165,7 @@ export function AssistantMessage({
                 const parsed = JSON.parse(toolMessage.content);
                 parsedContent = parsed;
             }
-         } catch {}
+         } catch (_e) { /* ignore parse error */ }
          toolResultsMap[tc.id] = parsedContent;
       }
     });
@@ -186,11 +191,6 @@ export function AssistantMessage({
 
   // Filter out task tool calls from regular display
   const regularToolCalls = toolCalls.filter((tc: any) => tc.name !== "task") || [];
-
-  const [expandedSubAgents, setExpandedSubAgents] = useState<Record<string, boolean>>({});
-  const toggleSubAgent = (id: string) => {
-    setExpandedSubAgents(prev => ({ ...prev, [id]: !prev[id] }));
-  };
 
   const { values } = thread;
   const customComponents = values.ui?.filter(

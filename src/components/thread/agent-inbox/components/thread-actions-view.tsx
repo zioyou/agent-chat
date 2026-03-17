@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useQueryState } from "nuqs";
 import { constructOpenInStudioURL, buildDecisionFromState } from "../utils";
-import { Decision, HITLRequest, DecisionType, ActionRequest } from "../types";
+import { Decision, HITLRequest, DecisionType, ActionRequest, SubmitType } from "../types";
 import { useStreamContext } from "@/providers/Stream";
 
 interface ThreadActionsViewProps {

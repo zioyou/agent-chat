@@ -131,8 +131,9 @@ export function HumanMessage({
             {/* Render text if present, masking [System] messages */}
             {contentString ? (
               <p className="bg-muted ml-auto w-fit rounded-3xl px-4 py-2 whitespace-pre-wrap">
-                {contentString.replace(/\[System\] File '.*' has been saved to the server at:[\s\S]*?(?=\n\n|$)/g, "")
-                              .replace(/^\s*[\r\n]/gm, "")}
+                {contentString.replace(/\[System\] File '.*?' has been saved to the server at:[\s\S]*?\[\/FileContent\]\s*/g, "")
+                              .replace(/\[System\] File '.*?' has been saved to the server at:[^\n]*/g, "")
+                              .replace(/^\s*[\r\n]/gm, "").trim()}
               </p>
             ) : null}
           </div>
@@ -153,8 +154,9 @@ export function HumanMessage({
           />
           <CommandBar
             isLoading={isLoading}
-            content={contentString.replace(/\[System\] File '.*' has been saved to the server at:[\s\S]*?(?=\n\n|$)/g, "")
-                                  .replace(/^\s*[\r\n]/gm, "")}
+            content={contentString.replace(/\[System\] File '.*?' has been saved to the server at:[\s\S]*?\[\/FileContent\]\s*/g, "")
+                                  .replace(/\[System\] File '.*?' has been saved to the server at:[^\n]*/g, "")
+                                  .replace(/^\s*[\r\n]/gm, "").trim()}
             isEditing={isEditing}
             setIsEditing={(c) => {
               if (c) {
