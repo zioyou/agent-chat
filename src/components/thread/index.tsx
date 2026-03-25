@@ -40,6 +40,7 @@ import {
   Square,
   ArrowUp,
   Settings,
+  Monitor,
 } from "lucide-react";
 import { FilesPopover } from "./TasksFilesSidebar";
 import {
@@ -382,6 +383,8 @@ export function Thread() {
   const [apiUrl, setApiUrl] = useQueryState("apiUrl");
   const [assistantId, setAssistantId] = useQueryState("assistantId");
   const [isGraphOpen, setIsGraphOpen] = useState(false);
+  const [isBrowserOpen, setIsBrowserOpen] = useState(false);
+  const [browserActive, setBrowserActive] = useState(false);
 
   // 그래프 캐시 상태
   const [graphCache, setGraphCache] = useState<Record<
@@ -401,6 +404,23 @@ export function Thread() {
   const [assistantInfo, setAssistantInfo] = useState<{ name: string; description: string; graph_id?: string } | null>(null);
 
   const refreshStream = useRefreshStream();
+
+  // 브라우저 서비스 상태 폴링
+  // useEffect(() => {
+  //   if (!isBrowserOpen) return;
+  //   const poll = async () => {
+  //     try {
+  //       const res = await fetch("http://localhost:8010/status");
+  //       const data = await res.json();
+  //       setBrowserActive(data.active);
+  //     } catch {
+  //       setBrowserActive(false);
+  //     }
+  //   };
+  //   poll();
+  //   const interval = setInterval(poll, 2000);
+  //   return () => clearInterval(interval);
+  // }, [isBrowserOpen]);  // 폴링은 필요시 활성화
 
   // 어시스턴트 정보 조회
   useEffect(() => {
@@ -739,6 +759,22 @@ export function Thread() {
                   <SquarePen className="size-5" />
                 </TooltipIconButton>
                 */}
+
+                {/* 브라우저 화면 버튼 */}
+                <TooltipIconButton
+                  size="lg"
+                  className="p-4"
+                  tooltip="브라우저 화면"
+                  variant="ghost"
+                  onClick={() => setIsBrowserOpen(true)}
+                >
+                  <div className="relative">
+                    <Monitor className="size-5" />
+                    {browserActive && (
+                      <span className="absolute -top-1 -right-1 size-2 rounded-full bg-green-500" />
+                    )}
+                  </div>
+                </TooltipIconButton>
 
                 <TooltipIconButton
                   size="lg"
@@ -1169,6 +1205,34 @@ export function Thread() {
         </div>
         )}
       </div>
+
+      {/* Browser View Panel */}
+      <Sheet open={isBrowserOpen} onOpenChange={setIsBrowserOpen}>
+        <SheetContent side="right" className="min-w-full sm:min-w-[80vw] flex flex-col">
+          <SheetHeader className="border-b pb-4 shrink-0">
+            <SheetTitle className="flex items-center gap-2">
+              <Monitor className="size-5" />
+              브라우저 화면
+              <span className={cn(
+                "ml-2 flex items-center gap-1 text-xs font-normal px-2 py-0.5 rounded-full",
+                browserActive
+                  ? "bg-green-100 text-green-700"
+                  : "bg-gray-100 text-gray-500"
+              )}>
+                <span className={cn("size-1.5 rounded-full", browserActive ? "bg-green-500" : "bg-gray-400")} />
+                {browserActive ? "실행 중" : "대기 중"}
+              </span>
+            </SheetTitle>
+          </SheetHeader>
+          <div className="flex-1 overflow-hidden min-h-0">
+            <iframe
+              src="http://localhost:6080/vnc.html?autoconnect=true&resize=scale&show_dot_cursor=true"
+              className="w-full h-full border-0"
+              title="브라우저 화면"
+            />
+          </div>
+        </SheetContent>
+      </Sheet>
 
       <Sheet
         open={isGraphOpen}

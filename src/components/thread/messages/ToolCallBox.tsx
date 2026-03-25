@@ -39,7 +39,7 @@ export const ToolCallBox = React.memo<ToolCallBoxProps>(
     graphId,
   }) => {
     const [isExpanded, setIsExpanded] = useState(
-      () => !!uiComponent
+      () => !!uiComponent || (toolCall.name === "run_browser_task" && propStatus === "pending")
     );
     const [expandedArgs, setExpandedArgs] = useState<Record<string, boolean>>(
       {}
@@ -99,7 +99,7 @@ export const ToolCallBox = React.memo<ToolCallBoxProps>(
       }));
     }, []);
 
-    const hasContent = result || Object.keys(args).length > 0;
+    const hasContent = result || Object.keys(args).length > 0 || (name === "run_browser_task" && status === "pending");
 
     return (
       <div
@@ -141,6 +141,16 @@ export const ToolCallBox = React.memo<ToolCallBoxProps>(
 
         {isExpanded && hasContent && (
           <div className="px-3 pb-3">
+            {name === "run_browser_task" && status === "pending" && (
+              <div className="mt-2 overflow-hidden rounded-md border border-border">
+                <iframe
+                  src="http://localhost:6080/vnc.html?autoconnect=true&resize=scale&show_dot_cursor=true"
+                  className="w-full border-0"
+                  style={{ height: "400px" }}
+                  title="브라우저 화면"
+                />
+              </div>
+            )}
             {uiComponent && stream && graphId ? (
               <div className="mt-2">
                 <LoadExternalComponent
