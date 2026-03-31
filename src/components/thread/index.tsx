@@ -10,6 +10,7 @@ import { ToolResult } from "./messages/tool-calls";
 import { Message, Checkpoint } from "@langchain/langgraph-sdk";
 
 import { AssistantMessage, AssistantMessageLoading } from "./messages/ai";
+import { BrowserIframe } from "./BrowserIframe";
 import { HumanMessage } from "./messages/human";
 import {
   DO_NOT_RENDER_ID_PREFIX,
@@ -859,6 +860,7 @@ export function Thread() {
                           message={message}
                           isLoading={isLoading}
                           handleRegenerate={handleRegenerate}
+                          threadId={threadId ?? undefined}
                         />
                       ),
                     )
@@ -871,6 +873,7 @@ export function Thread() {
                       message={undefined}
                       isLoading={isLoading}
                       handleRegenerate={handleRegenerate}
+                      threadId={threadId ?? undefined}
                     />
                   )}
                   {isLoading && !firstTokenReceived && (
@@ -1225,11 +1228,17 @@ export function Thread() {
             </SheetTitle>
           </SheetHeader>
           <div className="flex-1 overflow-hidden min-h-0">
-            <iframe
-              src="http://localhost:6080/vnc.html?autoconnect=true&resize=scale&show_dot_cursor=true"
-              className="w-full h-full border-0"
-              title="브라우저 화면"
-            />
+            {threadId ? (
+              <BrowserIframe
+                threadId={threadId}
+                className="w-full h-full border-0"
+                style={{ height: "100%" }}
+              />
+            ) : (
+              <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+                대화를 시작하면 브라우저 화면이 표시됩니다.
+              </div>
+            )}
           </div>
         </SheetContent>
       </Sheet>

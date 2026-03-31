@@ -13,6 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { LoadExternalComponent } from "@langchain/langgraph-sdk/react-ui";
+import { BrowserIframe } from "@/components/thread/BrowserIframe";
 // import { ToolApprovalInterrupt } from "@/app/components/ToolApprovalInterrupt";
 
 export interface ToolCallBoxProps {
@@ -27,6 +28,7 @@ export interface ToolCallBoxProps {
   uiComponent?: any;
   stream?: any;
   graphId?: string;
+  threadId?: string;
 }
 
 export const ToolCallBox = React.memo<ToolCallBoxProps>(
@@ -37,6 +39,7 @@ export const ToolCallBox = React.memo<ToolCallBoxProps>(
     uiComponent,
     stream,
     graphId,
+    threadId,
   }) => {
     const [isExpanded, setIsExpanded] = useState(
       () => !!uiComponent || (toolCall.name === "run_browser_task" && propStatus === "pending")
@@ -141,13 +144,12 @@ export const ToolCallBox = React.memo<ToolCallBoxProps>(
 
         {isExpanded && hasContent && (
           <div className="px-3 pb-3">
-            {name === "run_browser_task" && status === "pending" && (
+            {name === "run_browser_task" && status === "pending" && threadId && (
               <div className="mt-2 overflow-hidden rounded-md border border-border">
-                <iframe
-                  src="http://localhost:6080/vnc.html?autoconnect=true&resize=scale&show_dot_cursor=true"
+                <BrowserIframe
+                  threadId={threadId}
                   className="w-full border-0"
                   style={{ height: "400px" }}
-                  title="브라우저 화면"
                 />
               </div>
             )}

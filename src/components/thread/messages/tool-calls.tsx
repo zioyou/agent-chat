@@ -11,9 +11,11 @@ function isComplexValue(value: any): boolean {
 export function ToolCalls({
   toolCalls,
   toolResults,
+  threadId,
 }: {
   toolCalls: AIMessage["tool_calls"];
   toolResults?: Record<string, any>;
+  threadId?: string;
 }) {
   if (!toolCalls || toolCalls.length === 0) return null;
 
@@ -33,6 +35,7 @@ export function ToolCalls({
             }}
             result={result}
             status={status}
+            threadId={threadId}
           />
         );
       })}

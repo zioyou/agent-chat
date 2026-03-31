@@ -105,7 +105,8 @@ export const FileViewDialog = React.memo<{
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = fileName;
+      // 절대경로(/report.md)에서 파일명만 추출
+      a.download = fileName.split("/").filter(Boolean).pop() || fileName;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);

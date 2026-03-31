@@ -106,10 +106,12 @@ export function AssistantMessage({
   message,
   isLoading,
   handleRegenerate,
+  threadId,
 }: {
   message: Message | undefined;
   isLoading: boolean;
   handleRegenerate: (parentCheckpoint: Checkpoint | null | undefined) => void;
+  threadId?: string;
 }) {
   const content = message?.content ?? [];
   const contentString = getContentString(content);
@@ -285,13 +287,13 @@ export function AssistantMessage({
         {!hideToolCalls && (
           <>
             {(hasToolCalls && toolCallsHaveContents && (
-              <ToolCalls toolCalls={regularToolCalls} toolResults={toolResultsMap} />
+              <ToolCalls toolCalls={regularToolCalls} toolResults={toolResultsMap} threadId={threadId} />
             )) ||
               (hasAnthropicToolCalls && (
-                <ToolCalls toolCalls={anthropicStreamedToolCalls} />
+                <ToolCalls toolCalls={anthropicStreamedToolCalls} threadId={threadId} />
               )) ||
               (hasToolCalls && (
-                <ToolCalls toolCalls={regularToolCalls} toolResults={toolResultsMap} />
+                <ToolCalls toolCalls={regularToolCalls} toolResults={toolResultsMap} threadId={threadId} />
               ))}
           </>
         )}
