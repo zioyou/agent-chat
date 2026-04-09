@@ -19,7 +19,7 @@
     "format:check": "prettier --check ."
   },
   "dependencies": {
-    "@langchain/core": "^1.0.2",
+    "@langchain/core": "^1.1.28",
     "@langchain/langgraph": "^1.0.1",
     "@langchain/langgraph-sdk": "^1.0.0",
     "@radix-ui/react-alert-dialog": "^1.1.15",
@@ -44,8 +44,8 @@
     "lucide-react": "^0.476.0",
     "next-themes": "^0.4.4",
     "nuqs": "^2.4.1",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
     "react-markdown": "^10.0.1",
     "react-syntax-highlighter": "^15.5.0",
     "recharts": "^2.15.1",
@@ -75,8 +75,8 @@
     "eslint-config-next": "15.2.2",
     "eslint-plugin-react-hooks": "^5.0.0",
     "eslint-plugin-react-refresh": "^0.4.18",
-    "globals": "^15.14.0",
-    "next": "^15.4.10",
+    "globals": "^17.3.0",
+    "next": "^15.5.14",
     "postcss": "^8.5.3",
     "prettier": "^3.5.3",
     "prettier-plugin-tailwindcss": "^0.6.11",
@@ -87,6 +87,17 @@
   },
   "overrides": {
     "react-is": "^19.0.0-rc-69d4b800-20241021"
+  },
+  "pnpm": {
+    "overrides": {
+      "brace-expansion@1": "^1.1.12",
+      "brace-expansion@2": "^2.0.2",
+      "ajv": "^6.12.6",
+      "picomatch": "^2.3.1",
+      "flatted": "^3.3.3",
+      "prismjs": "^1.30.0",
+      "mdast-util-to-hast": "^13.2.0"
+    }
   },
   "packageManager": "pnpm@10.5.1"
 }

@@ -8,7 +8,7 @@ import remarkGfm from "remark-gfm";
 import rehypeKatex from "rehype-katex";
 import remarkMath from "remark-math";
 import rehypeRaw from "rehype-raw";
-import { useCallback, useRef, FC, memo, useState } from "react";
+import { useCallback, useRef, useState, FC, memo } from "react";
 import { CheckIcon, CopyIcon } from "lucide-react";
 import { SyntaxHighlighter } from "@/components/thread/syntax-highlighter";
 
@@ -382,16 +382,22 @@ const defaultComponents: any = {
   },
 };
 
+// ReactMarkdown을 별도 memo 컴포넌트로 분리 — content가 같으면 파싱 자체를 건너뜀
+const MemoizedReactMarkdown = memo(({ content }: { content: string }) => (
+  <ReactMarkdown
+    remarkPlugins={[remarkGfm, remarkMath]}
+    rehypePlugins={[rehypeKatex, rehypeRaw]}
+    components={defaultComponents}
+  >
+    {content}
+  </ReactMarkdown>
+));
+MemoizedReactMarkdown.displayName = "MemoizedReactMarkdown";
+
 const MarkdownTextImpl: FC<{ children: string }> = ({ children }) => {
   return (
     <div className="markdown-content">
-      <ReactMarkdown
-        remarkPlugins={[remarkGfm, remarkMath]}
-        rehypePlugins={[rehypeKatex, rehypeRaw]}
-        components={defaultComponents}
-      >
-        {children}
-      </ReactMarkdown>
+      <MemoizedReactMarkdown content={children} />
     </div>
   );
 };
