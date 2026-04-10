@@ -23,6 +23,7 @@ import { PasswordInput } from "@/components/ui/password-input";
 import { getApiKey } from "@/lib/api-key";
 import { useThreads } from "./Thread";
 import { toast } from "sonner";
+import { workerFetch } from "@/lib/worker-fetch";
 
 export const RefreshStreamContext = createContext<(() => void) | undefined>(undefined);
 
@@ -94,6 +95,7 @@ const StreamSession = ({
     assistantId,
     threadId: threadId ?? null,
     fetchStateHistory: true,
+    callerOptions: { fetch: workerFetch },
     onCustomEvent: (event, options) => {
       if (isUIMessage(event) || isRemoveUIMessage(event)) {
         options.mutate((prev) => {
