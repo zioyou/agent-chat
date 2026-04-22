@@ -11,9 +11,15 @@ import {
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Settings } from "lucide-react";
+import { Settings, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { PasswordInput } from "@/components/ui/password-input";
+
+interface SiteCredential {
+  domain: string;
+  id: string;
+  password: string;
+}
 
 interface UserSecrets {
   slack_webhook_url?: string;
@@ -22,6 +28,7 @@ interface UserSecrets {
   google_client_id?: string;
   google_client_secret?: string;
   google_refresh_token?: string;
+  site_credentials?: SiteCredential[];
 }
 
 export function SettingsDialog({
@@ -76,6 +83,35 @@ export function SettingsDialog({
     setSecrets((prev) => ({ ...prev, [key]: value }));
   };
 
+  const handleAddSiteCredential = () => {
+    setSecrets((prev) => ({
+      ...prev,
+      site_credentials: [
+        ...(prev.site_credentials || []),
+        { domain: "", id: "", password: "" },
+      ],
+    }));
+  };
+
+  const handleSiteCredentialChange = (
+    index: number,
+    field: keyof SiteCredential,
+    value: string,
+  ) => {
+    setSecrets((prev) => {
+      const updated = [...(prev.site_credentials || [])];
+      updated[index] = { ...updated[index], [field]: value };
+      return { ...prev, site_credentials: updated };
+    });
+  };
+
+  const handleRemoveSiteCredential = (index: number) => {
+    setSecrets((prev) => ({
+      ...prev,
+      site_credentials: (prev.site_credentials || []).filter((_, i) => i !== index),
+    }));
+  };
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
@@ -95,6 +131,72 @@ export function SettingsDialog({
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-6 py-4">
+          {/* 사이트 자격증명 */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h4 className="font-medium leading-none">사이트 자동 로그인</h4>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleAddSiteCredential}
+                className="h-7 gap-1 text-xs"
+              >
+                <Plus className="h-3 w-3" />
+                추가
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              브라우저 작업 시 해당 도메인이 포함되면 자동으로 로그인 정보를 주입합니다.
+            </p>
+            {(secrets.site_credentials || []).length === 0 && (
+              <p className="text-xs text-muted-foreground italic">등록된 사이트가 없습니다.</p>
+            )}
+            {(secrets.site_credentials || []).map((cred, index) => (
+              <div key={index} className="rounded-lg border p-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-medium text-muted-foreground">사이트 #{index + 1}</span>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleRemoveSiteCredential(index)}
+                    className="h-6 w-6 p-0 text-destructive hover:text-destructive"
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </Button>
+                </div>
+                <div className="grid gap-2">
+                  <Label className="text-xs">도메인</Label>
+                  <Input
+                    value={cred.domain}
+                    onChange={(e) => handleSiteCredentialChange(index, "domain", e.target.value)}
+                    placeholder="naver.com"
+                    className="h-8 text-sm"
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label className="text-xs">아이디</Label>
+                  <Input
+                    value={cred.id}
+                    onChange={(e) => handleSiteCredentialChange(index, "id", e.target.value)}
+                    placeholder="아이디"
+                    className="h-8 text-sm"
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label className="text-xs">비밀번호</Label>
+                  <PasswordInput
+                    value={cred.password}
+                    onChange={(e) => handleSiteCredentialChange(index, "password", e.target.value)}
+                    placeholder="비밀번호"
+                    className="h-8 text-sm"
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+
           {/* Google Calendar / Gmail (OAuth) */}
           <div className="space-y-4 pt-4 border-t">
              <h4 className="font-medium leading-none">Google Service (Calendar/Gmail)</h4>
