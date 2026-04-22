@@ -22,6 +22,11 @@ COPY . .
 # Next.js telemetry disable
 ENV NEXT_TELEMETRY_DISABLED 1
 
+# NEXT_PUBLIC_* 환경 변수는 빌드 시점에 번들에 하드코딩됨
+# docker build --build-arg NEXT_PUBLIC_API_URL=https://agent.zio.run:7002/api
+ARG NEXT_PUBLIC_API_URL=http://localhost:8002
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+
 RUN pnpm build
 
 # Production image, copy all the files and run next

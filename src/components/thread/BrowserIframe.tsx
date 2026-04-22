@@ -20,9 +20,15 @@ export function BrowserIframe({ threadId, className, style }: BrowserIframeProps
   const [ready, setReady] = useState(false);
 
   const safeId = threadId.replace(/-/g, "");
-  const vncSrc = `http://session-${safeId}.localhost:6080/vnc.html?autoconnect=true&resize=scale&show_dot_cursor=true`;
   const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8002";
   const statusUrl = `${apiUrl}/browser/session/${threadId}/ready`;
+
+  // 로컬 개발: session-{safeId}.localhost:6080 서브도메인 방식
+  // K8s 배포: agent.zio.run/browser/{safeId} path 기반 라우팅
+  const isProduction = apiUrl.includes("/api");
+  const vncSrc = isProduction
+    ? `${apiUrl.replace(/\/api$/, "")}/browser/${safeId}/vnc.html?path=browser/${safeId}/websockify&autoconnect=true&resize=scale&show_dot_cursor=true`
+    : `http://session-${safeId}.localhost:6080/vnc.html?autoconnect=true&resize=scale&show_dot_cursor=true`;
 
   // ready 상태 폴링
   useEffect(() => {

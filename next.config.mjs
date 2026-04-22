@@ -1,6 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: "standalone",
+  basePath: "/chat",
   experimental: {
     serverActions: {
       bodySizeLimit: "10mb",
